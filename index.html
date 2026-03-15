@@ -1076,8 +1076,8 @@ function rebuildRounds() {
     tempBal[d.getCur]  += d.getAmount;
 
     // --- OPEN round for getCur when balance crosses from <=0 to >0
-    // Don't open round for base currencies (those with initial capital > 0)
-    if (prevGet <= 0.001 && tempBal[d.getCur] > 0.001 && !exState.rounds[d.getCur] && cap(d.getCur) === 0) {
+    // Never open a round for USDT — it is always the settlement currency
+    if (prevGet <= 0.001 && tempBal[d.getCur] > 0.001 && !exState.rounds[d.getCur] && d.getCur !== 'usdt') {
       exState.rounds[d.getCur] = {
         cur:d.getCur, baseCur:d.giveCur, openedDate:d.date, openedTime:d.time,
         deals:[d.id], usdtSpent:toUsdt(d.giveAmount,d.giveCur), usdtReceived:0, status:'open'
