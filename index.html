@@ -1093,7 +1093,7 @@ function rebuildRounds() {
   // Agent profit from CLOSED rounds only, settled in USDT
   exState.agentProfit = {a1:{usdt:0}, a2:{usdt:0}};
   var a2p = a2pct()/100, a1p = a1pct()/100;
-  closedRounds.forEach(function(r) {
+  exState.closedRounds.forEach(function(r) {
     var usdt = r.realizedUsdt || 0;
     if (usdt === 0) return;
     // Find which agent ran the deals in this round
