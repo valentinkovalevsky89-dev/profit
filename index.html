@@ -218,13 +218,7 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
         </select>
       </div>
       <div class="field fs"><label>Спред %</label><input type="number" id="ex-spread" placeholder="2.0" step="0.1"></div>
-      <div class="field fxs">
-        <label>Режим</label>
-        <select id="ex-calc-mode">
-          <option value="give">От моей суммы</option>
-          <option value="get">От суммы клиента</option>
-        </select>
-      </div>
+
       <div class="field fxs"><label>Агент</label>
         <select id="ex-agent"><option value="a1">Агент 1</option><option value="a2">Агент 2</option></select>
       </div>
@@ -922,6 +916,11 @@ document.getElementById('ex-get-amt').addEventListener('input',  calcHint);
 // Spread calculator
 // When rate + spread entered → auto-fill getAmt
 // When rate + getAmt entered → show resulting spread %
+// Track which field user is actively editing
+var _lastEdited = 'give'; // 'give' or 'get'
+document.getElementById('ex-give-amt').addEventListener('focus', function(){ _lastEdited = 'give'; });
+document.getElementById('ex-get-amt').addEventListener('focus',  function(){ _lastEdited = 'get'; });
+
 var _calcBusy = false;
 function calcHint() {
   if (_calcBusy) return;
@@ -931,32 +930,36 @@ function calcHint() {
     var ra      = parseFloat(document.getElementById('ex-get-amt').value);
     var rt      = parseFloat(document.getElementById('ex-rate').value);
     var sp      = parseFloat(document.getElementById('ex-spread').value);
-    var mode    = document.getElementById('ex-calc-mode').value;
     var getCur  = document.getElementById('ex-get-cur').value;
     var giveCur = document.getElementById('ex-give-cur').value;
     var hint    = document.getElementById('ex-calc-hint');
 
-    if (!rt) { hint.textContent = ''; return; }
-
-    if (sp) {
-      var clientRate = rt * (1 + sp/100);
-      if (mode === 'give' && ga) {
-        var getAmt = parseFloat((ga * clientRate).toFixed(2));
-        document.getElementById('ex-get-amt').value = getAmt;
-        hint.innerHTML = '<span style="color:var(--green)">Клиент платит: ' + getAmt.toFixed(2) + ' ' + SYM[getCur] + ' &nbsp;(курс ' + clientRate.toFixed(4) + ')</span>';
-      } else if (mode === 'get' && ra) {
-        var giveAmt = parseFloat((ra / clientRate).toFixed(2));
-        document.getElementById('ex-give-amt').value = giveAmt;
-        hint.innerHTML = '<span style="color:var(--green)">Мы даём: ' + giveAmt.toFixed(2) + ' ' + SYM[giveCur] + ' &nbsp;(курс ' + clientRate.toFixed(4) + ')</span>';
+    if (!rt || !sp) {
+      // No spread — just show actual spread if both amounts filled
+      if (ga && ra) {
+        var mv = ga * rt;
+        var actualSpread = mv > 0 ? ((ra - mv) / mv * 100) : 0;
+        var col  = actualSpread >= 0 ? 'var(--green)' : 'var(--red)';
+        var sign = actualSpread >= 0 ? '+' : '';
+        hint.innerHTML = '<span style="color:'+col+'">Спред: ' + sign + actualSpread.toFixed(2) + '%  &nbsp;|&nbsp;  прибыль: ' + sign + (ra - mv).toFixed(2) + ' ' + SYM[getCur] + '</span>';
       } else {
         hint.textContent = '';
       }
-    } else if (ga && ra) {
-      var mv = ga * rt;
-      var actualSpread = mv > 0 ? ((ra - mv) / mv * 100) : 0;
-      var col  = actualSpread >= 0 ? 'var(--green)' : 'var(--red)';
-      var sign = actualSpread >= 0 ? '+' : '';
-      hint.innerHTML = '<span style="color:'+col+'">Спред: ' + sign + actualSpread.toFixed(2) + '%  &nbsp;|&nbsp;  прибыль: ' + sign + (ra - mv).toFixed(2) + ' ' + SYM[getCur] + '</span>';
+      return;
+    }
+
+    var clientRate = rt * (1 + sp/100);
+
+    if (_lastEdited === 'give' && ga) {
+      // User entered their amount → calculate client amount
+      var getAmt = parseFloat((ga * clientRate).toFixed(2));
+      document.getElementById('ex-get-amt').value = getAmt;
+      hint.innerHTML = '<span style="color:var(--green)">Клиент платит: ' + getAmt.toFixed(2) + ' ' + SYM[getCur] + ' &nbsp;(курс ' + clientRate.toFixed(4) + ')</span>';
+    } else if (_lastEdited === 'get' && ra) {
+      // User entered client amount → calculate our amount
+      var giveAmt = parseFloat((ra / clientRate).toFixed(2));
+      document.getElementById('ex-give-amt').value = giveAmt;
+      hint.innerHTML = '<span style="color:var(--green)">Мы даём: ' + giveAmt.toFixed(2) + ' ' + SYM[giveCur] + ' &nbsp;(курс ' + clientRate.toFixed(4) + ')</span>';
     } else {
       hint.textContent = '';
     }
@@ -966,19 +969,7 @@ function calcHint() {
 }
 
 ['ex-give-amt','ex-get-amt','ex-rate','ex-spread'].forEach(function(id) {
-  document.getElementById(id).addEventListener('input', function() {
-    if (id === 'ex-spread') {
-      var mode = document.getElementById('ex-calc-mode').value;
-      if (mode === 'give') document.getElementById('ex-get-amt').value = '';
-      else document.getElementById('ex-give-amt').value = '';
-    }
-    calcHint();
-  });
-});
-document.getElementById('ex-calc-mode').addEventListener('change', function() {
-  document.getElementById('ex-give-amt').value = '';
-  document.getElementById('ex-get-amt').value  = '';
-  document.getElementById('ex-calc-hint').textContent = '';
+  document.getElementById(id).addEventListener('input', calcHint);
 });
 updateRateLabel();
 
