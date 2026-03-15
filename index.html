@@ -63,10 +63,6 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
 }
 .field input:focus,.field select:focus{border-color:var(--green);}
 .field textarea{resize:none;height:36px;font-size:11px;}
-/* Hide number spinners */
-input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
-input[type=number]{-moz-appearance:textfield;}
 .fl{flex:2;min-width:120px;}.fs{flex:1;min-width:80px;}.fxs{width:90px;}
 .arrow{color:var(--muted);font-size:16px;padding-bottom:9px;flex-shrink:0;}
 
@@ -703,8 +699,8 @@ document.getElementById('ex-give-cur').addEventListener('change',function(){upda
 document.getElementById('ex-get-cur').addEventListener('change', function(){updateRateLabel();calcHint();});
 updateRateLabel();
 
-CURS.forEach(function(c){document.getElementById('cap-'+c).addEventListener('change',syncCapital);});
-document.getElementById('a2-pct').addEventListener('change',syncCapital);
+CURS.forEach(function(c){document.getElementById('cap-'+c).addEventListener('input',syncCapital);});
+document.getElementById('a2-pct').addEventListener('input',syncCapital);
 
 document.getElementById('btn-ex-deal').addEventListener('click',function(){
   var ga=parseFloat(document.getElementById('ex-give-amt').value);
