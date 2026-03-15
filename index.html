@@ -699,8 +699,8 @@ document.getElementById('ex-give-cur').addEventListener('change',function(){upda
 document.getElementById('ex-get-cur').addEventListener('change', function(){updateRateLabel();calcHint();});
 updateRateLabel();
 
-CURS.forEach(function(c){document.getElementById('cap-'+c).addEventListener('input',syncCapital);});
-document.getElementById('a2-pct').addEventListener('input',syncCapital);
+CURS.forEach(function(c){document.getElementById('cap-'+c).addEventListener('change',syncCapital);});
+document.getElementById('a2-pct').addEventListener('change',syncCapital);
 
 document.getElementById('btn-ex-deal').addEventListener('click',function(){
   var ga=parseFloat(document.getElementById('ex-give-amt').value);
