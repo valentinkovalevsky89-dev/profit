@@ -916,13 +916,8 @@ document.getElementById('ex-get-amt').addEventListener('input',  calcHint);
 // Spread calculator
 // When rate + spread entered → auto-fill getAmt
 // When rate + getAmt entered → show resulting spread %
-// Track which field user is actively editing
-var _lastEdited = 'give'; // 'give' or 'get'
-document.getElementById('ex-give-amt').addEventListener('focus', function(){ _lastEdited = 'give'; });
-document.getElementById('ex-get-amt').addEventListener('focus',  function(){ _lastEdited = 'get'; });
-
 var _calcBusy = false;
-function calcHint() {
+function calcHint(editedField) {
   if (_calcBusy) return;
   _calcBusy = true;
   try {
@@ -934,8 +929,9 @@ function calcHint() {
     var giveCur = document.getElementById('ex-give-cur').value;
     var hint    = document.getElementById('ex-calc-hint');
 
-    if (!rt || !sp) {
-      // No spread — just show actual spread if both amounts filled
+    if (!rt) { hint.textContent = ''; return; }
+
+    if (!sp) {
       if (ga && ra) {
         var mv = ga * rt;
         var actualSpread = mv > 0 ? ((ra - mv) / mv * 100) : 0;
@@ -950,16 +946,28 @@ function calcHint() {
 
     var clientRate = rt * (1 + sp/100);
 
-    if (_lastEdited === 'give' && ga) {
-      // User entered their amount → calculate client amount
+    // Direction determined by which field triggered the event
+    if (editedField === 'give' && ga) {
       var getAmt = parseFloat((ga * clientRate).toFixed(2));
       document.getElementById('ex-get-amt').value = getAmt;
       hint.innerHTML = '<span style="color:var(--green)">Клиент платит: ' + getAmt.toFixed(2) + ' ' + SYM[getCur] + ' &nbsp;(курс ' + clientRate.toFixed(4) + ')</span>';
-    } else if (_lastEdited === 'get' && ra) {
-      // User entered client amount → calculate our amount
+    } else if (editedField === 'get' && ra) {
       var giveAmt = parseFloat((ra / clientRate).toFixed(2));
       document.getElementById('ex-give-amt').value = giveAmt;
       hint.innerHTML = '<span style="color:var(--green)">Мы даём: ' + giveAmt.toFixed(2) + ' ' + SYM[giveCur] + ' &nbsp;(курс ' + clientRate.toFixed(4) + ')</span>';
+    } else if (editedField === 'rate' || editedField === 'spread') {
+      // Rate or spread changed — recalc based on whichever amount is filled
+      if (ga) {
+        var getAmt2 = parseFloat((ga * clientRate).toFixed(2));
+        document.getElementById('ex-get-amt').value = getAmt2;
+        hint.innerHTML = '<span style="color:var(--green)">Клиент платит: ' + getAmt2.toFixed(2) + ' ' + SYM[getCur] + ' &nbsp;(курс ' + clientRate.toFixed(4) + ')</span>';
+      } else if (ra) {
+        var giveAmt2 = parseFloat((ra / clientRate).toFixed(2));
+        document.getElementById('ex-give-amt').value = giveAmt2;
+        hint.innerHTML = '<span style="color:var(--green)">Мы даём: ' + giveAmt2.toFixed(2) + ' ' + SYM[giveCur] + ' &nbsp;(курс ' + clientRate.toFixed(4) + ')</span>';
+      } else {
+        hint.textContent = '';
+      }
     } else {
       hint.textContent = '';
     }
@@ -968,9 +976,10 @@ function calcHint() {
   }
 }
 
-['ex-give-amt','ex-get-amt','ex-rate','ex-spread'].forEach(function(id) {
-  document.getElementById(id).addEventListener('input', calcHint);
-});
+document.getElementById('ex-give-amt').addEventListener('input', function(){ calcHint('give'); });
+document.getElementById('ex-get-amt').addEventListener('input',  function(){ calcHint('get'); });
+document.getElementById('ex-rate').addEventListener('input',     function(){ calcHint('rate'); });
+document.getElementById('ex-spread').addEventListener('input',   function(){ calcHint('spread'); });
 updateRateLabel();
 
 CURS.forEach(function(c) {
