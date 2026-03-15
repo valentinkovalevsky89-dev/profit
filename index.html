@@ -808,20 +808,31 @@ function fetchRate() {
 
   btn.textContent = '...';
   btn.disabled = true;
+  lbl.style.color = 'var(--muted)';
   lbl.textContent = 'Загрузка...';
 
-  // Decide which API to use
-  var useCoingecko = src === 'coingecko' || (src === 'auto' && (gc === 'usdt' || rc === 'usdt'));
-  var useFrankfurter = src === 'frankfurter' || (src === 'auto' && gc !== 'usdt' && rc !== 'usdt');
+  // Strategy:
+  // - USDT treated as USD (≈1:1) for Frankfurter
+  // - If both fiat: Frankfurter directly
+  // - If one side is USDT: substitute with USD in Frankfurter, result is the same rate
+  // - CoinGecko used only when explicitly selected
 
-  if (useCoingecko) {
+  if (src === 'coingecko') {
     fetchCoinGecko(gc, rc);
-  } else if (useFrankfurter) {
-    fetchFrankfurter(gc, rc);
-  } else {
-    // fallback
-    fetchCoinGecko(gc, rc);
+    return;
   }
+
+  // For "auto" or "frankfurter": always use Frankfurter, substitute USDT→USD
+  var fGc = gc === 'usdt' ? 'usd' : gc;
+  var fRc = rc === 'usdt' ? 'usd' : rc;
+
+  if (fGc === fRc) {
+    // e.g. USD→USDT: rate is always 1
+    setRate(1, 'USDT≈USD');
+    return;
+  }
+
+  fetchFrankfurter(fGc, fRc, gc === 'usdt' || rc === 'usdt' ? 'Frankfurter (USDT≈USD)' : 'Frankfurter');
 }
 
 function setRate(rate, source) {
@@ -844,17 +855,17 @@ function rateError(msg) {
   btn.disabled = false;
 }
 
-function fetchFrankfurter(gc, rc) {
-  // frankfurter: base is always a fiat, returns how much of rc per 1 gc
+function fetchFrankfurter(gc, rc, label) {
   var base = gc.toUpperCase();
   var target = rc.toUpperCase();
+  var srcLabel = label || 'Frankfurter';
   fetch('https://api.frankfurter.app/latest?from='+base+'&to='+target)
     .then(function(r){ return r.json(); })
     .then(function(d){
       if (d.rates && d.rates[target]) {
-        setRate(parseFloat(d.rates[target].toFixed(6)), 'Frankfurter');
+        setRate(parseFloat(d.rates[target].toFixed(6)), srcLabel);
       } else {
-        rateError('Нет данных');
+        rateError('Frankfurter: нет данных для пары');
       }
     })
     .catch(function(){ rateError('Ошибка сети'); });
