@@ -975,17 +975,9 @@ function calcHint(editedField) {
       document.getElementById('ex-get-amt').value = getAmt;
       hint.innerHTML = '<span style="color:var(--green)">Клиент платит: ' + getAmt.toFixed(2) + ' ' + SYM[getCur] + ' &nbsp;(курс ' + clientRate.toFixed(4) + ')</span>';
     } else if (editedField === 'get' && ra) {
-      // If give amount already filled — recalc spread, don't touch give amount
-      if (ga) {
-        var newSpread = ((ra / (ga * rt)) - 1) * 100;
-        document.getElementById('ex-spread').value = newSpread.toFixed(2);
-        var newRate = rt * (1 + newSpread/100);
-        hint.innerHTML = '<span style="color:var(--green)">Спред скорректирован: +' + newSpread.toFixed(2) + '%  &nbsp;|&nbsp;  прибыль: +' + (ra - ga*rt).toFixed(2) + ' ' + SYM[getCur] + '</span>';
-      } else {
-        var giveAmt = parseFloat((ra / clientRate).toFixed(2));
-        document.getElementById('ex-give-amt').value = giveAmt;
-        hint.innerHTML = '<span style="color:var(--green)">Мы даём: ' + giveAmt.toFixed(2) + ' ' + SYM[giveCur] + ' &nbsp;(курс ' + clientRate.toFixed(4) + ')</span>';
-      }
+      var giveAmt = parseFloat((ra / clientRate).toFixed(2));
+      document.getElementById('ex-give-amt').value = giveAmt;
+      hint.innerHTML = '<span style="color:var(--green)">Мы даём: ' + giveAmt.toFixed(2) + ' ' + SYM[giveCur] + ' &nbsp;(курс ' + clientRate.toFixed(4) + ')</span>';
     } else if (editedField === 'rate' || editedField === 'spread') {
       // Rate or spread changed — recalc based on whichever amount is filled
       if (ga) {
