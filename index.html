@@ -61,8 +61,9 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
 .field input,.field select,.field textarea{
   background:var(--bg);border:1px solid var(--border);border-radius:7px;
   color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;
-  padding:9px 11px;outline:none;transition:border-color .2s;appearance:none;
+  padding:9px 11px;outline:none;transition:border-color .2s;
 }
+.field select{appearance:none;}
 .field input:focus,.field select:focus{border-color:var(--green);}
 .field textarea{resize:none;height:36px;font-size:11px;}
 .fl{flex:2;min-width:120px;}.fs{flex:1;min-width:80px;}.fxs{width:90px;}
@@ -372,14 +373,12 @@ function load() {
     if (!exState.capital)      exState.capital      = {eur:3000,huf:2000000,usdt:3000,usd:0,czk:0};
     if (!exState.a2pct)        exState.a2pct        = 30;
     if (!exState.deals)        exState.deals        = [];
-    // Ensure all currency keys exist (migration guard for old saves)
-    var _z = {eur:0,huf:0,usdt:0,usd:0,czk:0};
-    if (!exState.balances) exState.balances = {eur:0,huf:0,usdt:0,usd:0,czk:0};
-    if (!exState.profits)  exState.profits  = {eur:0,huf:0,usdt:0,usd:0,czk:0};
-    ['eur','huf','usdt','usd','czk'].forEach(function(c) {
-      if (exState.balances[c] === undefined) exState.balances[c] = 0;
-      if (exState.profits[c]  === undefined) exState.profits[c]  = 0;
-      if (exState.capital[c]  === undefined) exState.capital[c]  = 0;
+    if (!exState.balances)     exState.balances     = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+    if (!exState.profits)      exState.profits      = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+    ['eur','huf','usdt','usd','czk'].forEach(function(c){
+      if(exState.balances[c]===undefined) exState.balances[c]=0;
+      if(exState.profits[c]===undefined)  exState.profits[c]=0;
+      if(exState.capital[c]===undefined)  exState.capital[c]=0;
     });
     // Migrate old agentProfit structure {owner,pa,pb} → {a1:{...}, a2:{...}}
     if (!exState.agentProfit || !exState.agentProfit.a1) {
@@ -388,9 +387,9 @@ function load() {
         a2: {eur:0,huf:0,usdt:0,usd:0,czk:0}
       };
     }
-    ['eur','huf','usdt','usd','czk'].forEach(function(c) {
-      if (exState.agentProfit.a1[c] === undefined) exState.agentProfit.a1[c] = 0;
-      if (exState.agentProfit.a2[c] === undefined) exState.agentProfit.a2[c] = 0;
+    ['eur','huf','usdt','usd','czk'].forEach(function(c){
+      if(exState.agentProfit.a1[c]===undefined) exState.agentProfit.a1[c]=0;
+      if(exState.agentProfit.a2[c]===undefined) exState.agentProfit.a2[c]=0;
     });
   } catch(e) {
     // localStorage blocked (e.g. iframe CSP) — use in-memory state only
@@ -915,41 +914,19 @@ function rebuildRounds() {
 
   var tempBal = {eur:0,huf:0,usdt:0,usd:0,czk:0};
 
-  // FIX 1: Build a live rate index as we replay deals.
-  // Stores the most recent known rate for each pair: rateIndex['eur_usdt'] = X means 1 EUR = X USDT.
-  // This lets toUsdt handle cross-pairs (e.g. EUR→HUF) by looking up a EUR→USDT rate seen earlier.
-  var rateIndex = {};
-  function storeRate(giveCur, getCur, rate) {
-    rateIndex[giveCur+'_'+getCur] = rate;
-    if (rate) rateIndex[getCur+'_'+giveCur] = 1/rate;
-  }
-  function lookupUsdt(cur) {
-    // Returns how many USDT = 1 unit of `cur`, or null if unknown
-    if (cur === 'usdt') return 1;
-    if (rateIndex[cur+'_usdt']) return rateIndex[cur+'_usdt'];
-    // Try via any intermediate known rate (one-hop: cur→X→usdt)
-    for (var k in rateIndex) {
-      var parts = k.split('_');
-      if (parts[0] === cur && rateIndex[parts[1]+'_usdt']) {
-        return rateIndex[k] * rateIndex[parts[1]+'_usdt'];
-      }
-    }
-    return null;
-  }
-  function toUsdt(amount, cur) {
-    if (cur === 'usdt') return amount;
-    var r = lookupUsdt(cur);
-    // If no rate known yet, return amount as-is (best-effort fallback, same as before)
-    return r !== null ? amount * r : amount;
+  // Live rate index for cross-pair USDT conversion
+  var rateIdx = {};
+  function storeRate(give,get,rate){ rateIdx[give+'_'+get]=rate; if(rate) rateIdx[get+'_'+give]=1/rate; }
+  function toUsdt(amount,cur){
+    if(cur==='usdt') return amount;
+    if(rateIdx[cur+'_usdt']) return amount*rateIdx[cur+'_usdt'];
+    for(var k in rateIdx){ var p=k.split('_'); if(p[0]===cur&&rateIdx[p[1]+'_usdt']) return amount*rateIdx[k]*rateIdx[p[1]+'_usdt']; }
+    return amount;
   }
 
   exState.deals.forEach(function(d) {
-    var prevGive = tempBal[d.giveCur];
-    var prevGet  = tempBal[d.getCur];
-
-    // FIX 2: Store rate before touching balances so the index is populated
-    // for toUsdt calls later in this same iteration.
     storeRate(d.giveCur, d.getCur, d.rate);
+    var prevGet  = tempBal[d.getCur];
 
     tempBal[d.giveCur] -= d.giveAmount;
     tempBal[d.getCur]  += d.getAmount;
@@ -957,29 +934,20 @@ function rebuildRounds() {
     // --- OPEN round for getCur when balance crosses from <=0 to >0
     if (prevGet <= 0.001 && tempBal[d.getCur] > 0.001 && !exState.rounds[d.getCur]) {
       exState.rounds[d.getCur] = {
-        cur:          d.getCur,
-        baseCur:      d.giveCur,
-        openedDate:   d.date,
-        openedTime:   d.time,
-        deals:        [d.id],
-        usdtSpent:    toUsdt(d.giveAmount, d.giveCur),
-        usdtReceived: 0,
-        status:       'open'
+        cur:d.getCur, baseCur:d.giveCur, openedDate:d.date, openedTime:d.time,
+        deals:[d.id], usdtSpent:toUsdt(d.giveAmount,d.giveCur), usdtReceived:0, status:'open'
       };
     } else if (exState.rounds[d.getCur]) {
-      // Accumulate spend into existing open round for getCur
       var ro = exState.rounds[d.getCur];
       if (ro.deals.indexOf(d.id) === -1) ro.deals.push(d.id);
       ro.usdtSpent += toUsdt(d.giveAmount, d.giveCur);
     }
 
-    // --- Track receipts and close round when giveCur balance returns to ~0
-    // FIX 3: Guard against the deal being counted twice (once above, once here)
+    // --- Track USDT received; close round when balance hits zero
     if (exState.rounds[d.giveCur]) {
       var round = exState.rounds[d.giveCur];
       if (round.deals.indexOf(d.id) === -1) round.deals.push(d.id);
       round.usdtReceived += toUsdt(d.getAmount, d.getCur);
-
       if (tempBal[d.giveCur] <= 0.001) {
         round.closedDate   = d.date;
         round.closedTime   = d.time;
