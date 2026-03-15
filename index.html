@@ -838,7 +838,11 @@ function fetchRate() {
 function setRate(rate, source) {
   var btn = document.getElementById('btn-fetch-rate');
   var lbl = document.getElementById('ex-rate-source');
+  var gc  = document.getElementById('ex-give-cur').value;
+  var rc  = document.getElementById('ex-get-cur').value;
   document.getElementById('ex-rate').value = rate;
+  // Always show real currency names, not the substituted ones
+  document.getElementById('ex-rate-lbl').textContent = 'Курс (1 '+SYM[gc]+' = ? '+SYM[rc]+')';
   lbl.textContent = '✓ ' + source + ' · ' + new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
   lbl.style.color = 'var(--green)';
   btn.textContent = '⟳ Курс';
@@ -910,8 +914,11 @@ function fetchCoinGecko(gc, rc) {
 
 document.getElementById('btn-fetch-rate').addEventListener('click', fetchRate);
 // Auto-fetch when currency pair changes
-document.getElementById('ex-give-cur').addEventListener('change', function(){ updateRateLabel(); fetchRate(); calcHint(); });
-document.getElementById('ex-get-cur').addEventListener('change',  function(){ updateRateLabel(); fetchRate(); calcHint(); });
+document.getElementById('ex-give-cur').addEventListener('change', function(){ updateRateLabel(); fetchRate(); });
+document.getElementById('ex-get-cur').addEventListener('change',  function(){ updateRateLabel(); fetchRate(); });
+// Recalc hint when amounts change
+document.getElementById('ex-give-amt').addEventListener('input', calcHint);
+document.getElementById('ex-get-amt').addEventListener('input',  calcHint);
 // Spread calculator
 // When rate + spread entered → auto-fill getAmt
 // When rate + getAmt entered → show resulting spread %
