@@ -201,7 +201,22 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
       </div>
     </div>
     <div class="row">
-      <div class="field fl"><label id="ex-rate-lbl">Рыночный курс (1 EUR = ? USDT)</label><input type="number" id="ex-rate" placeholder="1.08"></div>
+      <div class="field fl">
+        <label id="ex-rate-lbl">Рыночный курс (1 EUR = ? USDT)</label>
+        <div style="display:flex;gap:6px;">
+          <input type="number" id="ex-rate" placeholder="1.08" style="flex:1">
+          <button class="btn btn-o" id="btn-fetch-rate" style="padding:9px 10px;font-size:10px;white-space:nowrap">⟳ Курс</button>
+        </div>
+        <div id="ex-rate-source" style="font-size:9px;color:var(--muted);margin-top:3px;min-height:14px;"></div>
+      </div>
+      <div class="field fxs">
+        <label>Источник</label>
+        <select id="ex-rate-api">
+          <option value="auto">Авто</option>
+          <option value="frankfurter">Frankfurter</option>
+          <option value="coingecko">CoinGecko</option>
+        </select>
+      </div>
       <div class="field fs"><label>Спред %</label><input type="number" id="ex-spread" placeholder="2.0" step="0.1"></div>
       <div class="field fxs">
         <label>Режим</label>
@@ -768,9 +783,124 @@ function renderRounds() {
 function updateRateLabel() {
   var g = document.getElementById('ex-give-cur').value;
   var r = document.getElementById('ex-get-cur').value;
-  // Convention: 1 giveCur = ? getCur  (e.g. 1 EUR = ? USDT)
-  document.getElementById('ex-rate-lbl').textContent = 'Рыночный курс (1 '+SYM[g]+' = ? '+SYM[r]+')';
+  document.getElementById('ex-rate-lbl').textContent = 'Курс (1 '+SYM[g]+' = ? '+SYM[r]+')';
 }
+
+// ================================================================
+// AUTO RATE FETCH
+// ================================================================
+// Frankfurter covers: EUR, USD, HUF, CZK (fiat only)
+// CoinGecko covers: USDT vs fiat
+// "auto" = pick the right API based on the pair
+
+var FIAT_CURS = ['eur','usd','huf','czk'];
+var CGIDS = {usdt:'tether',eur:'euro',usd:'usd',huf:'hungarian-forint',czk:'czech-koruna'};
+var CGVS  = {eur:'eur',usd:'usd',huf:'huf',czk:'czk',usdt:'usd'};
+
+function fetchRate() {
+  var gc = document.getElementById('ex-give-cur').value;
+  var rc = document.getElementById('ex-get-cur').value;
+  var src = document.getElementById('ex-rate-api').value;
+  var btn = document.getElementById('btn-fetch-rate');
+  var lbl = document.getElementById('ex-rate-source');
+
+  if (gc === rc) { lbl.textContent = 'Выбери разные валюты'; return; }
+
+  btn.textContent = '...';
+  btn.disabled = true;
+  lbl.textContent = 'Загрузка...';
+
+  // Decide which API to use
+  var useCoingecko = src === 'coingecko' || (src === 'auto' && (gc === 'usdt' || rc === 'usdt'));
+  var useFrankfurter = src === 'frankfurter' || (src === 'auto' && gc !== 'usdt' && rc !== 'usdt');
+
+  if (useCoingecko) {
+    fetchCoinGecko(gc, rc);
+  } else if (useFrankfurter) {
+    fetchFrankfurter(gc, rc);
+  } else {
+    // fallback
+    fetchCoinGecko(gc, rc);
+  }
+}
+
+function setRate(rate, source) {
+  var btn = document.getElementById('btn-fetch-rate');
+  var lbl = document.getElementById('ex-rate-source');
+  document.getElementById('ex-rate').value = rate;
+  lbl.textContent = '✓ ' + source + ' · ' + new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+  lbl.style.color = 'var(--green)';
+  btn.textContent = '⟳ Курс';
+  btn.disabled = false;
+  calcHint();
+}
+
+function rateError(msg) {
+  var btn = document.getElementById('btn-fetch-rate');
+  var lbl = document.getElementById('ex-rate-source');
+  lbl.textContent = '✗ ' + msg;
+  lbl.style.color = 'var(--red)';
+  btn.textContent = '⟳ Курс';
+  btn.disabled = false;
+}
+
+function fetchFrankfurter(gc, rc) {
+  // frankfurter: base is always a fiat, returns how much of rc per 1 gc
+  var base = gc.toUpperCase();
+  var target = rc.toUpperCase();
+  fetch('https://api.frankfurter.app/latest?from='+base+'&to='+target)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.rates && d.rates[target]) {
+        setRate(parseFloat(d.rates[target].toFixed(6)), 'Frankfurter');
+      } else {
+        rateError('Нет данных');
+      }
+    })
+    .catch(function(){ rateError('Ошибка сети'); });
+}
+
+function fetchCoinGecko(gc, rc) {
+  // CoinGecko: get price of giveCur in getCur
+  // Works best when one of them is USDT/USD
+  var coinId = null;
+  var vsCur  = null;
+
+  if (gc === 'usdt') {
+    // price of USDT in rc
+    coinId = 'tether';
+    vsCur  = rc === 'usdt' ? 'usd' : rc;
+  } else if (rc === 'usdt') {
+    // price of gc in USD (USDT ≈ USD)
+    coinId = gc === 'eur' ? 'euro' : gc === 'huf' ? 'hungarian-forint' : gc === 'czk' ? 'czech-koruna' : null;
+    if (!coinId) { rateError('Пара не поддерживается CoinGecko'); return; }
+    vsCur = 'usd';
+  } else {
+    // neither is USDT — use frankfurter instead
+    fetchFrankfurter(gc, rc); return;
+  }
+
+  fetch('https://api.coingecko.com/api/v3/simple/price?ids='+coinId+'&vs_currencies='+vsCur)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d[coinId] && d[coinId][vsCur]) {
+        var raw = d[coinId][vsCur];
+        // If we fetched price of gc in USD and rc is USDT, rate = 1/raw (1 gc = raw USD ≈ raw USDT)
+        // Actually: if gc='eur', coinId='euro', vs='usd' → d.euro.usd = price of 1 EUR in USD
+        // We want 1 EUR = ? USDT → same as USD ≈ USDT so rate = raw
+        // If gc='usdt', coinId='tether', vs=rc → rate = raw directly
+        setRate(parseFloat(raw.toFixed(6)), 'CoinGecko');
+      } else {
+        rateError('Нет данных CoinGecko');
+      }
+    })
+    .catch(function(){ rateError('Ошибка CoinGecko'); });
+}
+
+document.getElementById('btn-fetch-rate').addEventListener('click', fetchRate);
+// Auto-fetch when currency pair changes
+document.getElementById('ex-give-cur').addEventListener('change', function(){ updateRateLabel(); fetchRate(); calcHint(); });
+document.getElementById('ex-get-cur').addEventListener('change',  function(){ updateRateLabel(); fetchRate(); calcHint(); });
 // Spread calculator
 // When rate + spread entered → auto-fill getAmt
 // When rate + getAmt entered → show resulting spread %
@@ -832,8 +962,6 @@ document.getElementById('ex-calc-mode').addEventListener('change', function() {
   document.getElementById('ex-get-amt').value  = '';
   document.getElementById('ex-calc-hint').textContent = '';
 });
-document.getElementById('ex-give-cur').addEventListener('change', function() { updateRateLabel(); calcHint(); });
-document.getElementById('ex-get-cur').addEventListener('change',  function() { updateRateLabel(); calcHint(); });
 updateRateLabel();
 
 CURS.forEach(function(c) {
