@@ -63,6 +63,10 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
 }
 .field input:focus,.field select:focus{border-color:var(--green);}
 .field textarea{resize:none;height:36px;font-size:11px;}
+/* Hide number spinners */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+input[type=number]{-moz-appearance:textfield;}
 .fl{flex:2;min-width:120px;}.fs{flex:1;min-width:80px;}.fxs{width:90px;}
 .arrow{color:var(--muted);font-size:16px;padding-bottom:9px;flex-shrink:0;}
 
@@ -160,19 +164,19 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
 <!-- EXCHANGE -->
 <div class="page active" id="page-exchange">
   <div class="settings-row" style="padding-top:16px">
-    <div class="si"><label>EUR капитал</label><input type="text" inputmode="decimal" id="cap-eur" value="3000"></div>
-    <div class="si"><label>HUF капитал</label><input type="text" inputmode="decimal" id="cap-huf" value="2000000"></div>
-    <div class="si"><label>USDT капитал</label><input type="text" inputmode="decimal" id="cap-usdt" value="3000"></div>
-    <div class="si"><label>USD капитал</label><input type="text" inputmode="decimal" id="cap-usd" value="0"></div>
-    <div class="si"><label>CZK капитал</label><input type="text" inputmode="decimal" id="cap-czk" value="0"></div>
-    <div class="si"><label>Агент 2 доля %</label><input type="text" inputmode="decimal" id="a2-pct" value="30" min="1" max="99"></div>
+    <div class="si"><label>EUR капитал</label><input type="number" id="cap-eur" value="3000"></div>
+    <div class="si"><label>HUF капитал</label><input type="number" id="cap-huf" value="2000000"></div>
+    <div class="si"><label>USDT капитал</label><input type="number" id="cap-usdt" value="3000"></div>
+    <div class="si"><label>USD капитал</label><input type="number" id="cap-usd" value="0"></div>
+    <div class="si"><label>CZK капитал</label><input type="number" id="cap-czk" value="0"></div>
+    <div class="si"><label>Агент 2 доля %</label><input type="number" id="a2-pct" value="30" min="1" max="99"></div>
   </div>
   <div class="g5" id="ex-assets"></div>
   <div class="g2" id="ex-agents"></div>
   <div class="section">
     <div class="st">Новая сделка</div>
     <div class="row">
-      <div class="field fl"><label>Ты отдаёшь</label><input type="text" inputmode="decimal" id="ex-give-amt" placeholder="20000"></div>
+      <div class="field fl"><label>Ты отдаёшь</label><input type="number" id="ex-give-amt" placeholder="20000"></div>
       <div class="field fxs"><label>Валюта</label>
         <select id="ex-give-cur">
           <option value="eur">EUR</option><option value="huf">HUF</option>
@@ -180,7 +184,7 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
         </select>
       </div>
       <div class="arrow">→</div>
-      <div class="field fl"><label>Клиент отдаёт</label><input type="text" inputmode="decimal" id="ex-get-amt" placeholder="22400"></div>
+      <div class="field fl"><label>Клиент отдаёт</label><input type="number" id="ex-get-amt" placeholder="22400"></div>
       <div class="field fxs"><label>Валюта</label>
         <select id="ex-get-cur">
           <option value="usdt">USDT</option><option value="eur">EUR</option>
@@ -189,8 +193,8 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
       </div>
     </div>
     <div class="row">
-      <div class="field fl"><label id="ex-rate-lbl">Рыночный курс (1 € = ? USDT)</label><input type="text" inputmode="decimal" id="ex-rate" placeholder="1.08"></div>
-      <div class="field fs"><label>Спред %</label><input type="text" inputmode="decimal" id="ex-spread" placeholder="2.0" step="0.1"></div>
+      <div class="field fl"><label id="ex-rate-lbl">Рыночный курс (1 € = ? USDT)</label><input type="number" id="ex-rate" placeholder="1.08"></div>
+      <div class="field fs"><label>Спред %</label><input type="number" id="ex-spread" placeholder="2.0" step="0.1"></div>
       <div class="field fxs">
         <label>Режим</label>
         <select id="ex-calc-mode">
@@ -251,21 +255,21 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
           <option value="usd">Прямой USD</option>
         </select>
       </div>
-      <div class="field fl"><label id="sh-income-lbl">Сумма (UAH)</label><input type="text" inputmode="decimal" id="sh-income-amt" placeholder="40000"></div>
-      <div class="field fl" id="sh-rate-wrap"><label>Курс UAH/USD</label><input type="text" inputmode="decimal" id="sh-income-rate" placeholder="41.5"></div>
-      <div class="field fl" id="sh-usd-wrap"><label>Итого USD</label><input type="text" inputmode="decimal" id="sh-income-usd" placeholder="963.86" readonly style="color:var(--gold)"></div>
+      <div class="field fl"><label id="sh-income-lbl">Сумма (UAH)</label><input type="number" id="sh-income-amt" placeholder="40000"></div>
+      <div class="field fl" id="sh-rate-wrap"><label>Курс UAH/USD</label><input type="number" id="sh-income-rate" placeholder="41.5"></div>
+      <div class="field fl" id="sh-usd-wrap"><label>Итого USD</label><input type="number" id="sh-income-usd" placeholder="963.86" readonly style="color:var(--gold)"></div>
     </div>
     <button class="btn btn-g btn-full" id="btn-sh-income">ДОБАВИТЬ ЗАХОД →</button>
   </div>
   <div class="section">
     <div class="st">Продажа</div>
     <div class="row">
-      <div class="field fl"><label>Сумма продажи</label><input type="text" inputmode="decimal" id="sh-sale-amt" placeholder="1200"></div>
+      <div class="field fl"><label>Сумма продажи</label><input type="number" id="sh-sale-amt" placeholder="1200"></div>
       <div class="field fxs"><label>Валюта</label>
         <select id="sh-sale-cur"><option value="usd">USD</option><option value="uah">UAH</option></select>
       </div>
-      <div class="field fl" id="sh-sale-rate-wrap" style="display:none"><label>Курс UAH/USD</label><input type="text" inputmode="decimal" id="sh-sale-rate" placeholder="41.5"></div>
-      <div class="field fl"><label>Себестоимость (USD)</label><input type="text" inputmode="decimal" id="sh-cost" placeholder="800"></div>
+      <div class="field fl" id="sh-sale-rate-wrap" style="display:none"><label>Курс UAH/USD</label><input type="number" id="sh-sale-rate" placeholder="41.5"></div>
+      <div class="field fl"><label>Себестоимость (USD)</label><input type="number" id="sh-cost" placeholder="800"></div>
       <div class="field fl"><label>Заметка</label><textarea id="sh-note" placeholder="товар, клиент..."></textarea></div>
     </div>
     <button class="btn btn-g btn-full" id="btn-sh-sale">ЗАФИКСИРОВАТЬ ПРОДАЖУ →</button>
