@@ -539,19 +539,29 @@ function switchPage(name) {
 function renderExAssets() {
   var h = '';
   CURS.forEach(function(c) {
-    var bal   = exState.balances[c];
-    var cp    = cap(c);
-    var diff  = bal - cp;
+    var bal = exState.balances[c];
+    var pr  = exState.profits[c];
+    var cp  = cap(c);
+    var ps  = pr>=0?'+':'';
+    var pcls = pr>=0?'pos':'neg';
     var round = exState.rounds[c];
-    var dcls  = diff > 0.001 ? 'pos' : diff < -0.001 ? 'neg' : '';
-    var dsign = diff >= 0 ? '+' : '';
+    var badge = '';
+    if (round) {
+      badge = '<div class="round-badge rb-open">● РАУНД</div>';
+    }
+    // unrealized: profit in this currency while round is open
+    var unrealized = round ? (round.profitNative || 0) : 0;
+    var realized   = pr - unrealized;
 
     h += '<div class="card '+c+'">'
-      +(round ? '<div class="round-badge">● РАУНД</div>' : '')
+      + badge
       +'<div class="c-name">'+c.toUpperCase()+'</div>'
       +'<div class="c-val">'+fmt(bal,c)+'</div>'
       +'<div class="c-sub">капитал: '+fmt(cp,c)+'</div>'
-      +(diff !== 0 ? '<div class="c-sub '+dcls+'">движение: '+dsign+fmt(diff,c)+'</div>' : '')
+      +'<div class="c-sub '+pcls+'">профит всего: '+ps+fmt(pr,c)+'</div>'
+      +(round
+        ? '<div class="c-sub warn">нереализовано: '+ps+fmt(unrealized,c)+'</div>'
+        : (pr!==0 ? '<div class="c-sub pos">реализовано: '+fmt(realized,c)+'</div>' : ''))
       +'</div>';
   });
   document.getElementById('ex-assets').innerHTML = h;
@@ -560,23 +570,51 @@ function renderExAssets() {
 function renderExAgents() {
   var p = exState.agentProfit;
 
-  function usdtRow(ap) {
-    var v = ap.usdt || 0;
-    if (Math.abs(v) < 0.001) return '<div class="c-sub">нет реализованной прибыли</div>';
-    var col = v >= 0 ? 'var(--usdt)' : 'var(--red)';
-    return '<div class="c-sub" style="color:'+col+';font-size:13px;font-weight:700">'+(v>=0?'+':'')+v.toFixed(2)+' USDT</div>'
-      +'<div class="c-sub" style="color:var(--muted)">из закрытых раундов</div>';
+  // Realized USDT from closed rounds per agent
+  var realized = {a1:0, a2:0};
+  var a2p = a2pct()/100, a1p = a1pct()/100;
+  exState.closedRounds.forEach(function(r) {
+    var usdt = r.realizedUsdt || 0;
+    if (!usdt) return;
+    var roundDeals = exState.deals.filter(function(d){ return (r.deals||[]).indexOf(d.id) !== -1; });
+    var totalAbs = roundDeals.reduce(function(s,d){ return s + Math.abs(d.profit); }, 0) || 1;
+    roundDeals.forEach(function(d) {
+      var share = Math.abs(d.profit) / totalAbs * usdt;
+      if (d.agent === 'a1') { realized.a1 += share; }
+      else { realized.a2 += share * a2p; realized.a1 += share * a1p; }
+    });
+  });
+
+  function agentRows(ap) {
+    var rows = '';
+    CURS.forEach(function(c) {
+      var v = ap[c];
+      if (!v || Math.abs(v) < 0.001) return;
+      var sign = v>=0?'+':'';
+      var col  = v>=0?CLR[c]:'var(--red)';
+      rows += '<div class="c-sub" style="color:'+col+'">'+sign+fmt(v,c)+'</div>';
+    });
+    return rows || '<div class="c-sub">нет прибыли</div>';
+  }
+
+  function realizedRow(usdt) {
+    if (Math.abs(usdt) < 0.001) return '';
+    var col = usdt >= 0 ? 'var(--usdt)' : 'var(--red)';
+    return '<div class="c-sub" style="color:var(--muted);margin-top:5px;border-top:1px solid var(--border);padding-top:5px">реализовано:</div>'
+      +'<div class="c-sub" style="color:'+col+';font-weight:700">'+(usdt>=0?'+':'')+usdt.toFixed(2)+' USDT</div>';
   }
 
   var h = '<div class="card a1c">'
     +'<div class="c-name">Агент 1</div>'
     +'<div class="c-sub" style="color:var(--muted);margin-bottom:5px">100% своих + '+Math.round(a1pct())+'% от А2</div>'
-    + usdtRow(p.a1)
+    + agentRows(p.a1)
+    + realizedRow(realized.a1)
     +'</div>'
     +'<div class="card a2c">'
     +'<div class="c-name">Агент 2</div>'
     +'<div class="c-sub" style="color:var(--muted);margin-bottom:5px">'+Math.round(a2pct())+'% от своих сделок</div>'
-    + usdtRow(p.a2)
+    + agentRows(p.a2)
+    + realizedRow(realized.a2)
     +'</div>';
   document.getElementById('ex-agents').innerHTML = h;
 }
@@ -595,21 +633,26 @@ function renderExCharts() {
   });
   c1 += '</div></div>';
 
-  // Agent profits from closed rounds in USDT
+  // Agent profits
   var ap = exState.agentProfit;
-  var v1 = ap.a1.usdt||0, v2 = ap.a2.usdt||0;
-  var mx = Math.max(Math.abs(v1), Math.abs(v2)) || 1;
-  var c2 = '<div class="chart-card"><div class="chart-title">Агенты (реализовано)</div><div class="bar-chart">';
-  if (Math.abs(v1) > 0.001 || Math.abs(v2) > 0.001) {
+  var c2 = '<div class="chart-card"><div class="chart-title">Агенты по валютам</div><div class="bar-chart">';
+  var hasAny = false;
+  CURS.forEach(function(c) {
+    var v1 = ap.a1[c]||0, v2 = ap.a2[c]||0;
+    if (Math.abs(v1)<0.001 && Math.abs(v2)<0.001) return;
+    hasAny = true;
+    var mx = Math.max(Math.abs(v1),Math.abs(v2))||1;
+    c2 += '<div style="font-size:9px;color:var(--muted);margin:4px 0 3px">'+c.toUpperCase()+'</div>';
     c2 += '<div class="bar-row"><div class="bar-lbl">А1</div>'
       +'<div class="bar-track"><div class="bar-fill" style="width:'+Math.abs(v1)/mx*100+'%;background:var(--a1)"></div></div>'
-      +'<div class="bar-val" style="color:var(--a1)">'+(v1>=0?'+':'')+v1.toFixed(2)+' USDT</div></div>';
-    c2 += '<div class="bar-row"><div class="bar-lbl">А2</div>'
-      +'<div class="bar-track"><div class="bar-fill" style="width:'+Math.abs(v2)/mx*100+'%;background:var(--a2)"></div></div>'
-      +'<div class="bar-val" style="color:var(--a2)">'+(v2>=0?'+':'')+v2.toFixed(2)+' USDT</div></div>';
-  } else {
-    c2 += '<div style="color:var(--muted);font-size:11px">нет закрытых раундов</div>';
-  }
+      +'<div class="bar-val" style="color:var(--a1);font-size:10px">'+(v1>=0?'+':'')+fmt(v1,c)+'</div></div>';
+    if (Math.abs(v2)>0.001) {
+      c2 += '<div class="bar-row"><div class="bar-lbl">А2</div>'
+        +'<div class="bar-track"><div class="bar-fill" style="width:'+Math.abs(v2)/mx*100+'%;background:var(--a2)"></div></div>'
+        +'<div class="bar-val" style="color:var(--a2);font-size:10px">'+(v2>=0?'+':'')+fmt(v2,c)+'</div></div>';
+    }
+  });
+  if (!hasAny) c2 += '<div style="color:var(--muted);font-size:11px">нет данных</div>';
   c2 += '</div></div>';
 
   // Deals by day
@@ -1084,36 +1127,21 @@ function rebuildRounds() {
     }
   });
 
-  // Rebuild profits from deals (kept for CSV/log reference)
-  exState.profits = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+  // Rebuild profits from deals (for asset cards)
+  exState.profits     = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+  exState.agentProfit = {
+    a1: {eur:0,huf:0,usdt:0,usd:0,czk:0},
+    a2: {eur:0,huf:0,usdt:0,usd:0,czk:0}
+  };
+  var a2p = a2pct()/100, a1p = a1pct()/100;
   exState.deals.forEach(function(d) {
     exState.profits[d.getCur] += d.profit;
-  });
-
-  // Agent profit from CLOSED rounds only, settled in USDT
-  exState.agentProfit = {a1:{usdt:0}, a2:{usdt:0}};
-  var a2p = a2pct()/100, a1p = a1pct()/100;
-  exState.closedRounds.forEach(function(r) {
-    var usdt = r.realizedUsdt || 0;
-    if (usdt === 0) return;
-    // Find which agent ran the deals in this round
-    // Split by agent per deal weighted by their profit contribution
-    var roundDeals = exState.deals.filter(function(d){
-      return (r.deals||[]).indexOf(d.id) !== -1;
-    });
-    var a1usdt = 0, a2usdt = 0;
-    var totalProfit = roundDeals.reduce(function(s,d){return s + Math.abs(d.profit);}, 0) || 1;
-    roundDeals.forEach(function(d) {
-      var share = Math.abs(d.profit) / totalProfit * usdt;
-      if (d.agent === 'a1') {
-        a1usdt += share;
-      } else {
-        a2usdt += share * a2p;
-        a1usdt += share * a1p;
-      }
-    });
-    exState.agentProfit.a1.usdt += a1usdt;
-    exState.agentProfit.a2.usdt += a2usdt;
+    if (d.agent === 'a1') {
+      exState.agentProfit.a1[d.getCur] += d.profit;
+    } else {
+      exState.agentProfit.a2[d.getCur] += d.profit * a2p;
+      exState.agentProfit.a1[d.getCur] += d.profit * a1p;
+    }
   });
 
   // Rebuild actual balances = capital + deal flow
