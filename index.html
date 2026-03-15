@@ -519,7 +519,7 @@ function renderExAssets() {
       badge = '<div class="round-badge rb-open">● РАУНД</div>';
     }
     // unrealized: profit in this currency while round is open
-    var unrealized = round ? round.unrealizedProfit : 0;
+    var unrealized = round ? (round.profitNative || 0) : 0;
     var realized   = pr - unrealized;
 
     h += '<div class="card '+c+'">'
@@ -659,7 +659,7 @@ function renderExLog() {
       +abadge+statusDot
       +(d.client?' <span style="font-size:10px;color:var(--muted)">'+d.client+'</span>':'')
       +'</div>'
-      +'<div class="li-s">'+d.date+' '+d.time+' · курс: 1 '+SYM[d.getCur]+' = '+d.rate+' '+SYM[d.giveCur]+(d.note?' · '+d.note:'')+'</div>'
+      +'<div class="li-s">'+d.date+' '+d.time+' · курс: 1 '+SYM[d.giveCur]+' = '+d.rate+' '+SYM[d.getCur]+(d.note?' · '+d.note:'')+'</div>'
       +'</div>'
       +'<div class="li-p"><div class="li-pv" style="color:'+col+'">'+sign+fmt(d.profit,d.getCur)+'</div>'
       +'<div class="li-pp">'+sign+d.pct+'%</div></div>'
@@ -680,12 +680,24 @@ function renderExchange() {
 // ROUNDS — RENDER
 // ================================================================
 function renderRounds() {
-  // Summary cards
-  var closedUsdt = exState.closedRounds.reduce(function(s,r){return s+(r.realizedUsdt||0);},0);
-  var openCount  = CURS.filter(function(c){return exState.rounds[c]!==null;}).length;
+  var openCount = CURS.filter(function(c){return exState.rounds[c]!==null;}).length;
+
+  // Summary
+  var totalByNative = {};
+  exState.closedRounds.forEach(function(r) {
+    if (!totalByNative[r.cur]) totalByNative[r.cur] = 0;
+    totalByNative[r.cur] += r.profitNative || 0;
+  });
+  var summaryProfit = Object.keys(totalByNative).map(function(c) {
+    var v = totalByNative[c];
+    var sign = v>=0?'+':'';
+    var col = v>=0?CLR[c]:'var(--red)';
+    return '<span style="color:'+col+';font-weight:700">'+sign+fmt(v,c)+'</span>';
+  }).join('  ');
+
   var sh = '<div class="card usdt">'
-    +'<div class="c-name">Реализовано (USDT)</div>'
-    +'<div class="c-val" style="color:var(--green)">'+fmtU(closedUsdt)+'</div>'
+    +'<div class="c-name">Реализовано</div>'
+    +'<div class="c-val" style="font-size:13px;line-height:1.7">'+(summaryProfit||'—')+'</div>'
     +'<div class="c-sub">'+exState.closedRounds.length+' закрытых раундов</div>'
     +'</div>'
     +'<div class="card eur">'
@@ -700,8 +712,9 @@ function renderRounds() {
   CURS.forEach(function(c) {
     var r = exState.rounds[c];
     if (!r) return;
-    var pr = r.unrealizedProfit || 0;
+    var pr   = r.profitNative || 0;
     var sign = pr>=0?'+':'';
+    var col  = pr>=0?'var(--orange)':'var(--red)';
     openHtml += '<div class="round-item">'
       +'<div class="round-hdr">'
       +'<div class="round-title" style="color:var(--orange)">🟡 '+c.toUpperCase()+' раунд</div>'
@@ -709,7 +722,7 @@ function renderRounds() {
       +'</div>'
       +'<div class="round-profits">'
       +'<div class="rp-item"><span class="rp-cur">нереализовано:</span>'
-      +'<span style="color:var(--orange);font-weight:700">'+sign+fmt(pr,c)+'</span></div>'
+      +'<span style="color:'+col+';font-weight:700">'+sign+fmt(pr,c)+'</span></div>'
       +'<div class="rp-item"><span class="rp-cur">баланс:</span>'
       +'<span style="color:'+CLR[c]+';font-weight:700">'+fmt(exState.balances[c],c)+'</span></div>'
       +'</div></div>';
@@ -719,10 +732,10 @@ function renderRounds() {
   // Closed rounds
   var closedHtml = '';
   exState.closedRounds.slice().reverse().forEach(function(r,i) {
-    var num  = exState.closedRounds.length-i;
-    var usdt = r.realizedUsdt || 0;
-    var sign = usdt>=0?'+':'';
-    var col  = usdt>=0?'var(--green)':'var(--red)';
+    var num  = exState.closedRounds.length - i;
+    var pr   = r.profitNative || 0;
+    var sign = pr>=0?'+':'';
+    var col  = pr>=0?'var(--green)':'var(--red)';
     closedHtml += '<div class="round-item">'
       +'<div class="round-hdr">'
       +'<div class="round-title" style="color:var(--green)">🟢 #'+num+' '+r.cur.toUpperCase()+' раунд</div>'
@@ -730,11 +743,7 @@ function renderRounds() {
       +'</div>'
       +'<div class="round-profits">'
       +'<div class="rp-item"><span class="rp-cur">итог раунда:</span>'
-      +'<span style="color:'+col+';font-weight:700;font-size:14px">'+sign+usdt.toFixed(2)+' USDT</span></div>'
-      +'<div class="rp-item"><span class="rp-cur">потрачено:</span>'
-      +'<span style="color:var(--muted)">'+((r.spent)||0).toFixed(2)+' USDT</span></div>'
-      +'<div class="rp-item"><span class="rp-cur">получено:</span>'
-      +'<span style="color:var(--muted)">'+((r.received)||0).toFixed(2)+' USDT</span></div>'
+      +'<span style="color:'+col+';font-weight:700;font-size:14px">'+sign+fmt(pr,r.cur)+'</span></div>'
       +'</div></div>';
   });
   document.getElementById('closed-rounds').innerHTML = closedHtml || '<div class="empty">Закрытых раундов пока нет</div>';
@@ -746,7 +755,8 @@ function renderRounds() {
 function updateRateLabel() {
   var g = document.getElementById('ex-give-cur').value;
   var r = document.getElementById('ex-get-cur').value;
-  document.getElementById('ex-rate-lbl').textContent = 'Рыночный курс (1 '+SYM[r]+' = ? '+SYM[g]+')';
+  // Convention: 1 giveCur = ? getCur  (e.g. 1 EUR = ? USDT)
+  document.getElementById('ex-rate-lbl').textContent = 'Рыночный курс (1 '+SYM[g]+' = ? '+SYM[r]+')';
 }
 document.getElementById('ex-give-cur').addEventListener('change', updateRateLabel);
 document.getElementById('ex-get-cur').addEventListener('change',  updateRateLabel);
@@ -771,9 +781,12 @@ function addExDeal() {
   if (!ga||!ra||!rt) { alert('Заполни три числовых поля.'); return; }
   if (gc===rc)       { alert('Валюты должны быть разными.'); return; }
 
-  var mv     = ga/rt;
-  var profit = ra-mv;
-  var pct    = ((profit/mv)*100).toFixed(1);
+  // rate = 1 giveCur = rt getCur  (e.g. 1 EUR = 1.136 USDT)
+  // market value of what we gave, expressed in getCur = ga * rt
+  // profit = what client gave us minus market value
+  var mv     = ga * rt;
+  var profit = ra - mv;
+  var pct    = mv > 0 ? ((profit/mv)*100).toFixed(1) : '0.0';
 
   var deal = {
     id:Date.now(), giveCur:gc, giveAmount:ga, getCur:rc, getAmount:ra,
@@ -815,66 +828,62 @@ function deleteExDeal(id) {
 }
 
 // Rebuild rounds by replaying all deals
+// Round opens when we first acquire a non-USDT currency (giveCur flow)
+// Round closes when we sell all of it back
+// Profit tracked in giveCur (the currency we started the round with)
 function rebuildRounds() {
   exState.rounds       = {eur:null,huf:null,usdt:null,usd:null,czk:null};
   exState.closedRounds = [];
 
   // tempBal: net deal flow per currency (independent of capital)
-  var tempBal    = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+  var tempBal     = {eur:0,huf:0,usdt:0,usd:0,czk:0};
   var roundOpenBal = {eur:0,huf:0,usdt:0,usd:0,czk:0};
 
   exState.deals.forEach(function(d) {
-    var prevGet = tempBal[d.getCur];
+    var prevGive = tempBal[d.giveCur];
 
     tempBal[d.giveCur] -= d.giveAmount;
     tempBal[d.getCur]  += d.getAmount;
 
-    // OPEN round for getCur (never for USDT — it is base currency)
-    if (d.getCur !== 'usdt' && prevGet <= roundOpenBal[d.getCur] && tempBal[d.getCur] > roundOpenBal[d.getCur]) {
-      if (!exState.rounds[d.getCur]) {
-        roundOpenBal[d.getCur] = prevGet;
-        exState.rounds[d.getCur] = {
-          cur:         d.getCur,
-          openedDate:  d.date,
-          openedTime:  d.time,
-          openedAtBal: prevGet,
-          deals:       [d.id],
-          // track all base-currency (USDT) spent buying this currency
-          spent:       d.giveCur === 'usdt' ? d.giveAmount : 0,
-          // track all base-currency (USDT) received selling this currency
-          received:    0,
-          // also accumulate non-USDT profits for display
-          unrealizedProfit: d.profit
-        };
+    // OPEN round for giveCur when we start spending it from zero/positive
+    // (means we acquired giveCur before this and now start selling)
+    // Actually: open round for getCur when balance goes from <=0 to positive
+    if (d.getCur !== 'usdt') {
+      var prevGet = tempBal[d.getCur] - d.getAmount;
+      if (prevGet <= roundOpenBal[d.getCur] && tempBal[d.getCur] > roundOpenBal[d.getCur]) {
+        if (!exState.rounds[d.getCur]) {
+          exState.rounds[d.getCur] = {
+            cur:          d.getCur,
+            openedDate:   d.date,
+            openedTime:   d.time,
+            openedAtBal:  prevGet,
+            deals:        [d.id],
+            profitNative: d.profit,  // profit accumulated in getCur
+            status:       'open'
+          };
+        } else {
+          var ro = exState.rounds[d.getCur];
+          if (ro.deals.indexOf(d.id) === -1) ro.deals.push(d.id);
+          ro.profitNative += d.profit;
+        }
+      } else if (exState.rounds[d.getCur]) {
+        var ro = exState.rounds[d.getCur];
+        if (ro.deals.indexOf(d.id) === -1) ro.deals.push(d.id);
+        ro.profitNative += d.profit;
       }
-    } else if (exState.rounds[d.getCur]) {
-      var r = exState.rounds[d.getCur];
-      if (r.deals.indexOf(d.id) === -1) r.deals.push(d.id);
-      // buying more of this currency mid-round
-      if (d.giveCur === 'usdt') r.spent += d.giveAmount;
-      r.unrealizedProfit += d.profit;
     }
 
-    // Track USDT received when SELLING this currency (giveCur has open round)
-    if (exState.rounds[d.giveCur] && d.getCur === 'usdt') {
-      exState.rounds[d.giveCur].received += d.getAmount;
-    }
-
-    // CLOSE round for giveCur when deal flow drops back to openedAtBal
-    if (exState.rounds[d.giveCur]) {
+    // CLOSE round for giveCur when its balance drops back to open level
+    if (d.giveCur !== 'usdt' && exState.rounds[d.giveCur]) {
       var round     = exState.rounds[d.giveCur];
       var threshold = round.openedAtBal !== undefined ? round.openedAtBal : 0;
       if (tempBal[d.giveCur] <= threshold + 0.001) {
         if (round.deals.indexOf(d.id) === -1) round.deals.push(d.id);
-        // also capture final USDT received if this closing deal brings USDT
-        if (d.getCur === 'usdt') round.received += d.getAmount;
-        round.closedDate = d.date;
-        round.closedTime = d.time;
-        // ROUND RESULT = total USDT received - total USDT spent
-        round.realizedUsdt   = round.received - round.spent;
-        // also keep the spread-based profit for display
-        round.realizedProfit = round.unrealizedProfit;
-        round.status = 'closed';
+        // profit from selling giveCur is in getCur — add it
+        round.profitNative += d.profit;
+        round.closedDate    = d.date;
+        round.closedTime    = d.time;
+        round.status        = 'closed';
         roundOpenBal[d.giveCur] = 0;
         exState.closedRounds.push(JSON.parse(JSON.stringify(round)));
         exState.rounds[d.giveCur] = null;
@@ -883,7 +892,6 @@ function rebuildRounds() {
   });
 
   // Rebuild profits from deals (for asset cards)
-  // Reset and recalculate
   exState.profits     = {eur:0,huf:0,usdt:0,usd:0,czk:0};
   exState.agentProfit = {
     a1: {eur:0,huf:0,usdt:0,usd:0,czk:0},
