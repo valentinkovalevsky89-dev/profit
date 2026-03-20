@@ -160,7 +160,7 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
     </div>
 
     <!-- TRANSFER — available to all agents -->
-    <div class="card" id="transfer-card">
+    <div class="card" id="transfer-card" style="display:none">
       <div class="card-title" style="color:var(--czk);">↔ Передача средств коллеге</div>
       <div class="field" style="margin-bottom:12px;">
         <label>Кому передаю</label>
@@ -268,7 +268,8 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
 // ================================================================
 var params       = new URLSearchParams(window.location.search);
 var AGENTS_PARAM = params.get('agents') || params.get('agent') || '';
-var ROLE         = params.get('role') || 'agent'; // 'agent' or 'senior'
+var ROLE         = params.get('role') || 'agent'; // 'owner' or 'agent'
+var IS_OWNER     = (ROLE === 'owner' || ROLE === 'senior'); // owner = директор
 var GS_URL       = params.get('gs') || localStorage.getItem('gs_url') || '';
 
 var CURS = ['usdt','eur','huf','usd','czk'];
@@ -299,13 +300,19 @@ if (!AGENTS_LIST.length || !GS_URL) {
 } else {
   // Badge
   var badge = document.getElementById('role-badge');
-  if (ROLE === 'senior') {
-    badge.textContent = '★ Старший';
+  var agentName = AGENTS_LIST.length === 1 ? AGENTS_LIST[0] : 'Агент';
+  if (IS_OWNER) {
+    badge.textContent = '★ ' + agentName;
     badge.className = 'role-badge role-senior';
+    // Owner sees: capital movement, NO transfer form
     document.getElementById('senior-panel').classList.remove('hidden');
+    document.getElementById('transfer-card').style.display = 'none';
   } else {
-    badge.textContent = AGENTS_LIST.length === 1 ? AGENTS_LIST[0] : 'Агент';
+    badge.textContent = agentName;
     badge.className = 'role-badge role-agent';
+    // Agent sees: transfer form, NO capital movement
+    document.getElementById('transfer-card').style.display = '';
+    // senior-panel stays hidden
   }
 
   // Populate agent selector
@@ -316,14 +323,13 @@ if (!AGENTS_LIST.length || !GS_URL) {
     sel.appendChild(opt);
   });
 
-  // Populate transfer "to" selector — all agents except self
+  // Populate transfer "to" selector (agents only)
   var trSel = document.getElementById('tr-to-agent');
   AGENTS_LIST.forEach(function(name) {
     var opt = document.createElement('option');
     opt.value = name; opt.textContent = name;
     trSel.appendChild(opt);
   });
-  // Default to second agent if available
   if (AGENTS_LIST.length > 1) trSel.value = AGENTS_LIST[1];
 
   fetchRate();
