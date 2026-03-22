@@ -186,6 +186,14 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
         <input type="text" id="note" placeholder="@username или комментарий">
       </div>
 
+      <div id="usdt-to-owner-row" style="display:none;margin-bottom:12px;background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.25);border-radius:8px;padding:10px 12px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--gold);">
+          <input type="checkbox" id="usdt-to-owner" style="width:16px;height:16px;accent-color:var(--gold);">
+          USDT передаю владельцу
+        </label>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;margin-left:24px;">Автоматически запишет перевод USDT → владельцу</div>
+      </div>
+
       <button class="btn btn-g" id="btn-add-queue">+ ДОБАВИТЬ В ОЧЕРЕДЬ</button>
     </div>
 
@@ -430,7 +438,13 @@ function fetchRate() {
     });
 }
 document.getElementById('give-cur').addEventListener('change', function(){ updateRateLabel(); fetchRate(); });
-document.getElementById('get-cur').addEventListener('change',  function(){ updateRateLabel(); fetchRate(); });
+document.getElementById('get-cur').addEventListener('change',  function(){
+  updateRateLabel(); fetchRate();
+  // Show USDT-to-owner checkbox only when getCur=USDT and not owner role
+  var row = document.getElementById('usdt-to-owner-row');
+  if (row) row.style.display = (!IS_OWNER && this.value === 'usdt') ? '' : 'none';
+  if (row && (IS_OWNER || this.value !== 'usdt')) document.getElementById('usdt-to-owner').checked = false;
+});
 document.getElementById('btn-fetch-rate').addEventListener('click', fetchRate);
 
 // CALC HINT + SPREAD
@@ -524,6 +538,7 @@ document.getElementById('btn-add-queue').addEventListener('click', function() {
   var mv = ga * rt;
   var profit = ra - mv;
   var pct = mv > 0 ? ((profit / mv) * 100).toFixed(2) : '0.00';
+  var usdtToOwner = rc === 'usdt' && !IS_OWNER && document.getElementById('usdt-to-owner').checked;
   dealQueue.push({
     id: Date.now() + Math.random(),
     agent: getSelectedAgent(),
@@ -531,11 +546,13 @@ document.getElementById('btn-add-queue').addEventListener('click', function() {
     getCur: rc,  getAmount: ra,
     rate: rt, profit: profit, pct: pct,
     note: note, date: today(), time: nowTime(),
-    status: 'pending'
+    status: 'pending',
+    usdtToOwner: usdtToOwner
   });
   document.getElementById('give-amt').value = '';
   document.getElementById('get-amt').value  = '';
   document.getElementById('note').value     = '';
+  document.getElementById('usdt-to-owner').checked = false;
   document.getElementById('calc-hint').innerHTML = '<div><div class="calc-hint-label">Профит от сделки</div>'
     + '<div style="color:var(--muted);font-size:11px;margin-top:3px;">введи суммы и курс</div></div>';
   saveQueue();
@@ -615,7 +632,29 @@ function sendQueueDeal(id) {
     + '&date='       + encodeURIComponent(d.date)
     + '&time='       + encodeURIComponent(d.time);
   fetch(url, {mode: 'no-cors'})
-    .then(function(){ d.status = 'sent'; saveQueue(); renderQueue(); })
+    .then(function(){
+      d.status = 'sent'; saveQueue(); renderQueue();
+      // Auto-transfer USDT to owner if flagged
+      if (d.usdtToOwner && d.getCur === 'usdt' && GS_URL) {
+        // Owner is always the second agent in AGENTS_LIST for non-owner terminal
+        var ownerName = AGENTS_LIST.length > 1 ? AGENTS_LIST[1] : AGENTS_LIST[0];
+        fetch(GS_URL, {
+          method: 'POST', mode: 'no-cors',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            type: 'transfer',
+            fromAgent: d.agent,
+            toAgent:   ownerName,
+            cur:       'usdt',
+            amt:       d.getAmount,
+            note:      'авто · USDT от сделки',
+            date:      d.date,
+            time:      d.time
+          })
+        }).catch(function(){});
+        showToast('✓ Сделка + перевод USDT → владельцу');
+      }
+    })
     .catch(function(){ d.status = 'error'; saveQueue(); renderQueue(); showToast('Ошибка отправки', true); });
 }
 

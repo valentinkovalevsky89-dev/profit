@@ -574,6 +574,15 @@ function load() {
       if(exState.profits[c]===undefined)  exState.profits[c]=0;
       if(exState.capital[c]===undefined)  exState.capital[c]=0;
     });
+    // Migration: fix full Date.toString() strings → dd.mm in cashflows and pools
+    function fixDate(s) {
+      if (!s || s.length <= 6) return s;
+      var d = new Date(s);
+      if (isNaN(d)) return s;
+      return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0');
+    }
+    (exState.cashflows || []).forEach(function(cf){ cf.date = fixDate(cf.date); });
+    (exState.attributionPools || []).forEach(function(p){ p.date = fixDate(p.date); });
   } catch(e) {
     console.log('localStorage unavailable, using memory');
   }
@@ -2469,9 +2478,9 @@ setTimeout(function autoLoadOnStartup() {
         fromAgent: r.fromAgent,
         toAgent:   r.toAgent,
         cur:       r.cur,
-        amt:       r.amt,
+        amt:       parseFloat(r.amt) || 0,
         note:      r.note || '',
-        date:      r.date || ''
+        date:      normDate(r.date || '')
       });
       added++;
     });
@@ -3054,7 +3063,7 @@ document.getElementById('gs-fetch-btn').addEventListener('click', function() {
           cur:       r.cur.toLowerCase(),
           amt:       parseFloat(r.amt) || 0,
           note:      r.note || '',
-          date:      r.date || ''
+          date:      normDate(r.date || '')
         });
       });
     }
@@ -3116,14 +3125,44 @@ function processGsRows(rows) {
     var valid = CURS.indexOf(gc) !== -1 && CURS.indexOf(rc) !== -1 &&
                 gc !== rc && ga > 0 && ra > 0 && rt > 0;
 
-    var mv     = ga * rt;
-    var profit = ra - mv;
-    var pct    = mv > 0 ? ((profit/mv)*100).toFixed(1) : '0.0';
+    // Determine correct rate direction: rate should be getCur/giveCur
+    // i.e. ra ≈ ga * rt. If ga*rt is wildly off from ra, try 1/rt.
+    var mv, profit;
+    if (valid) {
+      var mv1 = ga * rt;
+      var mv2 = ga / rt;
+      // Pick whichever gives mv closer to ra
+      if (Math.abs(mv1 - ra) <= Math.abs(mv2 - ra)) {
+        mv = mv1;
+      } else {
+        mv = mv2;
+        rt = 1 / rt; // normalize rate to getCur/giveCur
+      }
+      profit = ra - mv;
+    } else {
+      mv = 0; profit = 0;
+    }
+    var pct = mv > 0 ? ((profit/mv)*100).toFixed(1) : '0.0';
 
-    // parse timestamp for date/time display
-    var dt = new Date(r.timestamp);
-    var dateStr = isNaN(dt) ? today() : dt.toLocaleDateString('ru',{day:'2-digit',month:'2-digit'});
-    var timeStr = isNaN(dt) ? now()   : dt.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+    // parse timestamp for date/time display — always dd.mm format
+    var dateStr, timeStr;
+    // First try r.date field directly (already dd.mm from terminal)
+    if (r.date && /^\d{2}\.\d{2}/.test(r.date.toString().trim())) {
+      dateStr = r.date.toString().trim().substring(0, 5);
+      var dt2 = new Date(r.timestamp);
+      timeStr = isNaN(dt2) ? '00:00' : dt2.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+    } else {
+      var dt = new Date(r.timestamp);
+      if (!isNaN(dt)) {
+        var dd = String(dt.getDate()).padStart(2,'0');
+        var mm = String(dt.getMonth()+1).padStart(2,'0');
+        dateStr = dd + '.' + mm;
+        timeStr = dt.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+      } else {
+        dateStr = today();
+        timeStr = '00:00';
+      }
+    }
 
     gsPreviewDeals.push({
       _gsRow: r._row,
