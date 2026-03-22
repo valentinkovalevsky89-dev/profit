@@ -2378,7 +2378,7 @@ setTimeout(function autoLoadOnStartup() {
         <select id="gs-agent-filter" style="background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 10px;flex:1;">
           <option value="">Все агенты</option>
         </select>
-        <button class="btn btn-g" id="gs-fetch-btn" style="flex:2;">Загрузить сделки</button>
+        <button class="btn btn-g" id="gs-fetch-btn" style="flex:2;">Загрузить всё из GS</button>
       </div>
     </div>
 
@@ -2517,6 +2517,8 @@ function doGet(e) {
   var result;
   if (action === 'transfers') {
     result = readTransfers();
+  } else if (action === 'capital') {
+    result = readCapital();
   } else {
     result = readDeals();
   }
@@ -2624,7 +2626,7 @@ function readDeals() {
 
 function readTransfers() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('Transfers');
+  var sheet = ss.getSheetByName('Переводы') || ss.getSheetByName('Transfers');
   if (!sheet) return { ok: true, rows: [] };
   var data = sheet.getDataRange().getValues();
   if (data.length < 2) return { ok: true, rows: [] };
@@ -2643,6 +2645,33 @@ function readTransfers() {
       note:      row[5].toString().trim(),
       date:      row[6].toString().trim(),
       time:      row[7].toString().trim()
+    });
+  }
+  return { ok: true, rows: rows };
+}
+
+function readCapital() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Капитал');
+  if (!sheet) return { ok: true, rows: [] };
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { ok: true, rows: [] };
+
+  // Timestamp Дата Время Тип Сумма Валюта Заметка Агент
+  // 0        1    2     3   4     5      6       7
+  var rows = [];
+  for (var r = 1; r < data.length; r++) {
+    var row = data[r];
+    if (!row[0]) continue;
+    rows.push({
+      _row:  r + 1,
+      date:  row[1].toString().trim(),
+      time:  row[2].toString().trim(),
+      type:  row[3].toString().trim(),
+      amt:   row[4].toString().trim(),
+      cur:   row[5].toString().trim().toLowerCase(),
+      note:  row[6].toString().trim(),
+      agent: row[7].toString().trim()
     });
   }
   return { ok: true, rows: rows };
@@ -2712,32 +2741,93 @@ document.getElementById('gs-fetch-btn').addEventListener('click', function() {
   btn.innerHTML = '<span class="spin">⟳</span> Загрузка...';
   btn.disabled = true;
 
-  // JSONP — единственный способ обойти CORS с Apps Script
-  var cbName = 'gsCallback_' + Date.now();
-  var script = document.createElement('script');
+  var results = {deals: null, transfers: null, capital: null};
 
-  window[cbName] = function(data) {
-    delete window[cbName];
-    document.body.removeChild(script);
-    btn.textContent = 'Загрузить сделки';
+  function checkAllDone() {
+    if (results.deals === null || results.transfers === null || results.capital === null) return;
+    btn.textContent = 'Загрузить всё';
     btn.disabled = false;
-    if (!data.ok || !data.rows) {
-      alert('Ошибка: ' + (data.error || 'Нет данных'));
-      return;
+
+    // Process capital
+    if (results.capital && results.capital.ok && results.capital.rows) {
+      var existingCfIds = new Set(
+        (exState.cashflows || []).filter(function(cf){ return cf._gsRow; }).map(function(cf){ return cf._gsRow; })
+      );
+      results.capital.rows.forEach(function(r) {
+        if (existingCfIds.has(r._row)) return;
+        if (!r.type || !r.amt || !r.cur) return;
+        if (!exState.cashflows) exState.cashflows = [];
+        exState.cashflows.push({
+          type:   r.type === 'Пополнение' ? 'in' : 'out',
+          cur:    r.cur.toLowerCase(),
+          amt:    parseFloat(r.amt) || 0,
+          note:   r.note || '',
+          date:   r.date || '',
+          _gsRow: r._row
+        });
+      });
     }
-    processGsRows(data.rows);
-  };
 
-  script.onerror = function() {
-    delete window[cbName];
-    document.body.removeChild(script);
-    btn.textContent = 'Загрузить сделки';
-    btn.disabled = false;
-    alert('Ошибка загрузки. Проверь URL скрипта.');
-  };
+    // Process transfers
+    if (results.transfers && results.transfers.ok && results.transfers.rows) {
+      var existingTrIds = new Set(
+        (exState.cashflows || []).filter(function(cf){ return cf.type === 'transfer' && cf._gsRow; }).map(function(cf){ return cf._gsRow; })
+      );
+      results.transfers.rows.forEach(function(r) {
+        if (existingTrIds.has(r._row)) return;
+        if (!r.fromAgent || !r.toAgent || !r.cur || !r.amt) return;
+        if (!exState.cashflows) exState.cashflows = [];
+        exState.cashflows.push({
+          type:      'transfer',
+          _id:       'gs_tr_' + r._row,
+          _gsRow:    r._row,
+          fromAgent: r.fromAgent,
+          toAgent:   r.toAgent,
+          cur:       r.cur.toLowerCase(),
+          amt:       parseFloat(r.amt) || 0,
+          note:      r.note || '',
+          date:      r.date || ''
+        });
+      });
+    }
 
-  script.src = url + '?action=read&callback=' + cbName;
-  document.body.appendChild(script);
+    // Process deals — show preview as before
+    if (results.deals && results.deals.ok && results.deals.rows) {
+      processGsRows(results.deals.rows);
+    } else {
+      alert('Ошибка загрузки сделок: ' + ((results.deals && results.deals.error) || 'Нет данных'));
+    }
+
+    // Rebuild with new capital and transfers already applied
+    rebuildRounds();
+    save();
+    renderExchange();
+    renderTrLog();
+    renderCfLog();
+  }
+
+  function jsonpFetch(action, key) {
+    var cbName = 'gsCb_' + action + '_' + Date.now();
+    var script = document.createElement('script');
+    window[cbName] = function(data) {
+      delete window[cbName];
+      if (document.body.contains(script)) document.body.removeChild(script);
+      results[key] = data;
+      checkAllDone();
+    };
+    script.onerror = function() {
+      delete window[cbName];
+      if (document.body.contains(script)) document.body.removeChild(script);
+      results[key] = {ok: false, rows: []};
+      checkAllDone();
+    };
+    script.src = url + '?action=' + action + '&callback=' + cbName;
+    document.body.appendChild(script);
+  }
+
+  jsonpFetch('read',      'deals');
+  jsonpFetch('transfers', 'transfers');
+  jsonpFetch('capital',   'capital');
 });
 
 function processGsRows(rows) {
