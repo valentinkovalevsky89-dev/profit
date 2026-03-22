@@ -97,6 +97,18 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
 
   <div id="main-screen">
 
+    <!-- МОЙ БАЛАНС -->
+    <div class="card" id="balance-card" style="display:none">
+      <div class="queue-header">
+        <div class="queue-title">Мой баланс</div>
+        <button class="rate-btn" id="btn-refresh-balance" style="padding:6px 12px;font-size:10px;">⟳</button>
+      </div>
+      <div id="balance-body">
+        <div style="color:var(--muted);font-size:11px;">Загрузка...</div>
+      </div>
+      <div id="balance-updated" style="font-size:9px;color:var(--muted);margin-top:8px;"></div>
+    </div>
+
     <!-- КАЛЬКУЛЯТОР -->
     <div class="card">
       <div class="card-title">Калькулятор сделки</div>
@@ -157,7 +169,19 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
         </div>
       </div>
 
-      <div class="field" style="margin-bottom:14px;">
+      <!-- Спред + автосчёт -->
+      <div class="row2" style="margin-bottom:0;">
+        <div class="field">
+          <label>Спред %</label>
+          <input type="number" id="spread" placeholder="2.0" step="0.1" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label id="profit-lbl">Профит</label>
+          <div id="profit-display" style="padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:9px;font-size:13px;font-weight:700;color:var(--muted);">—</div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px;margin-top:12px;">
         <label>Клиент / заметка</label>
         <input type="text" id="note" placeholder="@username или комментарий">
       </div>
@@ -179,7 +203,7 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
 
     <!-- ПЕРЕДАЧА (агенты) -->
     <div class="card" id="transfer-card" style="display:none">
-      <div class="card-title" style="color:var(--czk);">↔ Передача средств коллеге</div>
+      <div class="card-title" style="color:var(--czk);">↔ Передача средств</div>
       <div class="field" style="margin-bottom:12px;">
         <label>Кому передаю</label>
         <select id="tr-to-agent" style="font-size:14px;font-weight:700;color:var(--czk);"></select>
@@ -343,37 +367,82 @@ document.getElementById('give-cur').addEventListener('change', function(){ updat
 document.getElementById('get-cur').addEventListener('change',  function(){ updateRateLabel(); fetchRate(); });
 document.getElementById('btn-fetch-rate').addEventListener('click', fetchRate);
 
-// CALC HINT
-function updateCalcHint() {
-  var ga = parseFloat(document.getElementById('give-amt').value);
-  var gc = document.getElementById('give-cur').value;
-  var ra = parseFloat(document.getElementById('get-amt').value);
-  var rc = document.getElementById('get-cur').value;
-  var rt = parseFloat(document.getElementById('rate').value);
-  var hint = document.getElementById('calc-hint');
-  if (!ga || !ra || !rt || gc === rc) {
-    hint.innerHTML = '<div><div class="calc-hint-label">Профит от сделки</div>'
-      + '<div style="color:var(--muted);font-size:11px;margin-top:3px;">введи суммы и курс</div></div>';
-    return;
+// CALC HINT + SPREAD
+var _agBusy = false;
+function updateCalcHint(editedField) {
+  if (_agBusy) return;
+  _agBusy = true;
+  try {
+    var ga  = parseFloat(document.getElementById('give-amt').value);
+    var gc  = document.getElementById('give-cur').value;
+    var ra  = parseFloat(document.getElementById('get-amt').value);
+    var rc  = document.getElementById('get-cur').value;
+    var rt  = parseFloat(document.getElementById('rate').value);
+    var sp  = parseFloat(document.getElementById('spread').value) || 0;
+    var hint = document.getElementById('calc-hint');
+    var profDisp = document.getElementById('profit-display');
+
+    if (!rt || gc === rc) {
+      hint.innerHTML = '<div><div class="calc-hint-label">Профит от сделки</div>'
+        + '<div style="color:var(--muted);font-size:11px;margin-top:3px;">введи суммы и курс</div></div>';
+      profDisp.textContent = '—'; profDisp.style.color = 'var(--muted)';
+      return;
+    }
+
+    var clientRate = rt * (1 + sp / 100);
+
+    // Auto-fill the other amount based on what was edited
+    if (editedField === 'give' && ga) {
+      ra = parseFloat((ga * clientRate).toFixed(2));
+      document.getElementById('get-amt').value = ra;
+    } else if (editedField === 'get' && ra) {
+      ga = parseFloat((ra / clientRate).toFixed(2));
+      document.getElementById('give-amt').value = ga;
+    } else if ((editedField === 'rate' || editedField === 'spread')) {
+      if (ga) {
+        ra = parseFloat((ga * clientRate).toFixed(2));
+        document.getElementById('get-amt').value = ra;
+      } else if (ra) {
+        ga = parseFloat((ra / clientRate).toFixed(2));
+        document.getElementById('give-amt').value = ga;
+      }
+    }
+
+    if (!ga || !ra) {
+      hint.innerHTML = '<div><div class="calc-hint-label">Профит от сделки</div>'
+        + '<div style="color:var(--muted);font-size:11px;margin-top:3px;">введи суммы и курс</div></div>';
+      profDisp.textContent = '—'; profDisp.style.color = 'var(--muted)';
+      return;
+    }
+
+    var mv = ga * rt;
+    var profit = ra - mv;
+    var pct = mv > 0 ? (profit / mv * 100) : 0;
+    var col = profit >= 0 ? 'var(--green)' : 'var(--red)';
+    var sign = profit >= 0 ? '+' : '';
+
+    hint.innerHTML = '<div>'
+      + '<div class="calc-hint-label">Курс клиента</div>'
+      + '<div style="margin-top:3px;font-size:13px;font-weight:700;color:var(--text);">1 ' + SYM[gc] + ' = ' + clientRate.toFixed(4) + ' ' + SYM[rc] + '</div>'
+      + '<div style="font-size:10px;color:var(--muted);margin-top:2px;">рынок: ' + rt + ' · спред: ' + (sp >= 0 ? '+' : '') + sp + '%</div>'
+      + '</div>'
+      + '<div style="text-align:right;">'
+      + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">профит</div>'
+      + '<div style="color:' + col + ';font-size:15px;font-weight:700;">' + sign + fmt(profit, rc) + '</div>'
+      + '<div style="color:' + col + ';font-size:10px;">' + sign + pct.toFixed(2) + '%</div>'
+      + '</div>';
+
+    profDisp.textContent = sign + fmt(profit, rc);
+    profDisp.style.color = col;
+  } finally {
+    _agBusy = false;
   }
-  var mv = ga * rt;
-  var profit = ra - mv;
-  var pct = mv > 0 ? (profit / mv * 100) : 0;
-  var col = profit >= 0 ? 'var(--green)' : 'var(--red)';
-  var sign = profit >= 0 ? '+' : '';
-  hint.innerHTML = '<div>'
-    + '<div class="calc-hint-label">Профит от сделки</div>'
-    + '<div style="margin-top:3px;">'
-    + '<span style="color:' + col + ';font-size:15px;font-weight:700;">' + sign + fmt(profit, rc) + '</span>'
-    + '<span style="color:' + col + ';font-size:11px;margin-left:8px;">' + sign + pct.toFixed(2) + '%</span>'
-    + '</div></div>'
-    + '<div style="text-align:right;font-size:10px;color:var(--muted);">'
-    + 'по курсу<br><span style="font-size:12px;font-weight:600;color:var(--text);">1 ' + SYM[gc] + ' = ' + rt + ' ' + SYM[rc] + '</span>'
-    + '</div>';
 }
-['give-amt','get-amt','rate'].forEach(function(id){
-  document.getElementById(id).addEventListener('input', updateCalcHint);
-});
+
+document.getElementById('give-amt').addEventListener('input', function(){ updateCalcHint('give'); });
+document.getElementById('get-amt').addEventListener('input',  function(){ updateCalcHint('get'); });
+document.getElementById('rate').addEventListener('input',     function(){ updateCalcHint('rate'); });
+document.getElementById('spread').addEventListener('input',   function(){ updateCalcHint('spread'); });
 
 // ADD TO QUEUE
 document.getElementById('btn-add-queue').addEventListener('click', function() {
@@ -385,6 +454,7 @@ document.getElementById('btn-add-queue').addEventListener('click', function() {
   var note = document.getElementById('note').value.trim();
   if (!ga || !ra || !rt) { showToast('Заполни все числовые поля', true); return; }
   if (gc === rc)          { showToast('Валюты должны быть разными', true); return; }
+  var sp = parseFloat(document.getElementById('spread').value) || 0;
   var mv = ga * rt;
   var profit = ra - mv;
   var pct = mv > 0 ? ((profit / mv) * 100).toFixed(2) : '0.00';
@@ -530,6 +600,87 @@ document.getElementById('btn-tr-submit').addEventListener('click', function() {
   }).catch(function(e){ btn.innerHTML = 'ПЕРЕДАТЬ →'; btn.disabled = false; showToast('Ошибка: ' + e.message, true); });
 });
 
+// ================================================================
+// MY BALANCE — reads GS and calculates agent's holdings
+// ================================================================
+function loadBalance() {
+  if (!GS_URL) return;
+  var agentName = getSelectedAgent();
+  if (!agentName) return;
+
+  var card = document.getElementById('balance-card');
+  var body = document.getElementById('balance-body');
+  var upd  = document.getElementById('balance-updated');
+  card.style.display = '';
+  body.innerHTML = '<div style="color:var(--muted);font-size:11px;"><span class="spin">⟳</span> Загрузка...</div>';
+
+  var cbName = 'balCb_' + Date.now();
+  var script = document.createElement('script');
+
+  window[cbName] = function(data) {
+    delete window[cbName];
+    if (document.body.contains(script)) document.body.removeChild(script);
+
+    if (!data.ok || !data.rows) {
+      body.innerHTML = '<div style="color:var(--red);font-size:11px;">Ошибка загрузки</div>';
+      return;
+    }
+
+    // Calculate balance from deals
+    var SYM2 = {eur:'€', huf:'Ft', usdt:'USDT', usd:'$', czk:'Kč'};
+    var CURS2 = ['usdt','eur','huf','usd','czk'];
+    var bal = {usdt:0, eur:0, huf:0, usd:0, czk:0};
+
+    data.rows.forEach(function(r) {
+      // Only count this agent's deals
+      if ((r.agent || '').toLowerCase() !== agentName.toLowerCase()) return;
+      var gc = (r.givecur  || '').toLowerCase();
+      var rc = (r.getcur   || '').toLowerCase();
+      var ga = parseFloat(r.giveamount) || 0;
+      var ra = parseFloat(r.getamount)  || 0;
+      if (CURS2.indexOf(gc) !== -1) bal[gc] -= ga;
+      if (CURS2.indexOf(rc) !== -1) bal[rc] += ra;
+    });
+
+    // Render
+    var h = '';
+    var hasAny = false;
+    CURS2.forEach(function(c) {
+      var v = bal[c];
+      if (Math.abs(v) < 0.001) return;
+      hasAny = true;
+      var col = v >= 0 ? 'var(--green)' : 'var(--red)';
+      var sign = v >= 0 ? '+' : '';
+      var fmtVal = (c === 'huf' || c === 'czk')
+        ? Math.round(v).toLocaleString('ru') + ' ' + SYM2[c]
+        : parseFloat(v).toFixed(2) + ' ' + SYM2[c];
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">'
+        + '<span style="font-size:10px;color:var(--muted);text-transform:uppercase;">' + c.toUpperCase() + '</span>'
+        + '<span style="font-size:14px;font-weight:700;color:' + col + ';">' + sign + fmtVal + '</span>'
+        + '</div>';
+    });
+
+    if (!hasAny) h = '<div style="color:var(--muted);font-size:11px;">Нет сделок</div>';
+    body.innerHTML = h;
+    upd.textContent = 'обновлено · ' + nowTime();
+  };
+
+  script.onerror = function() {
+    delete window[cbName];
+    if (document.body.contains(script)) document.body.removeChild(script);
+    body.innerHTML = '<div style="color:var(--red);font-size:11px;">Ошибка загрузки</div>';
+  };
+
+  script.src = GS_URL + '?action=read&callback=' + cbName;
+  document.body.appendChild(script);
+}
+
+document.getElementById('btn-refresh-balance').addEventListener('click', loadBalance);
+
+// Auto-load balance on start
+setTimeout(loadBalance, 500);
+
+// ================================================================
 // TOAST
 function showToast(msg, isError) {
   var t = document.createElement('div');

@@ -707,7 +707,27 @@ function renderExAgents() {
     });
   });
 
-  // Active pool balances per agent (what they've lent out)
+  // Holdings per agent — what each agent physically holds
+  // = sum of deals where they are the acting agent (getCur - giveCur)
+  var holdings = {};
+  allIds.forEach(function(id){ holdings[id] = {eur:0,huf:0,usdt:0,usd:0,czk:0}; });
+  exState.deals.forEach(function(d) {
+    var agentObj = getAgent(d.agent || 'owner');
+    var agentId  = agentObj ? agentObj.id : 'owner';
+    if (!holdings[agentId]) holdings[agentId] = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+    holdings[agentId][d.giveCur] -= d.giveAmount;
+    holdings[agentId][d.getCur]  += d.getAmount;
+  });
+  // Apply transfers — fromAgent loses, toAgent gains
+  (exState.cashflows || []).forEach(function(cf) {
+    if (cf.type !== 'transfer') return;
+    if (!holdings[cf.fromAgent]) holdings[cf.fromAgent] = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+    if (!holdings[cf.toAgent])   holdings[cf.toAgent]   = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+    holdings[cf.fromAgent][cf.cur] -= cf.amt;
+    holdings[cf.toAgent][cf.cur]   += cf.amt;
+  });
+
+
   var poolsOut = {};  // fromAgent -> {cur -> remainingAmt}
   var poolsIn  = {};  // toAgent   -> {cur -> remainingAmt}
   allIds.forEach(function(id){ poolsOut[id] = {}; poolsIn[id] = {}; });
@@ -749,6 +769,21 @@ function renderExAgents() {
     return rows;
   }
 
+  function holdingsRows(bucket) {
+    var rows = '';
+    var hasAny = false;
+    CURS.forEach(function(c) {
+      var v = bucket[c] || 0;
+      if (Math.abs(v) < 0.001) return;
+      hasAny = true;
+      var col = v >= 0 ? CLR[c] : 'var(--red)';
+      var sign = v >= 0 ? '' : '';
+      rows += '<div class="c-sub" style="color:'+col+';font-size:11px;font-weight:700;">'+fmt(v,c)+'</div>';
+    });
+    if (!hasAny) rows = '<div class="c-sub" style="color:var(--muted)">—</div>';
+    return '<div class="c-sub" style="color:var(--muted);font-size:9px;margin-top:6px;margin-bottom:2px;border-top:1px solid var(--border);padding-top:6px;">на руках:</div>' + rows;
+  }
+
   var AGENT_COLORS = ['var(--a1)','var(--a2)','var(--gold)','var(--orange)','var(--czk)','var(--usd)'];
   var cardCount = 1 + agentCfg.agents.length;
   var gridCols = Math.min(cardCount, 4);
@@ -761,6 +796,7 @@ function renderExAgents() {
     +'<div class="c-sub" style="color:var(--muted);font-size:9px;margin-bottom:2px">спред:</div>'
     + spreadRows(sp['owner'])
     + realizedRow(realized['owner']||0)
+    + holdingsRows(holdings['owner']||{})
     + poolRows(poolsOut['owner']||{}, poolsIn['owner']||{})
     +'</div>';
 
@@ -772,6 +808,7 @@ function renderExAgents() {
       +'<div class="c-sub" style="color:var(--muted);font-size:9px;margin-bottom:2px">спред:</div>'
       + spreadRows(sp[a.id])
       + realizedRow(realized[a.id]||0)
+      + holdingsRows(holdings[a.id]||{})
       + poolRows(poolsOut[a.id]||{}, poolsIn[a.id]||{})
       +'</div>';
   });
@@ -1332,14 +1369,14 @@ function calcHint(editedField) {
     var ga      = parseFloat(document.getElementById('ex-give-amt').value);
     var ra      = parseFloat(document.getElementById('ex-get-amt').value);
     var rt      = parseFloat(document.getElementById('ex-rate').value);
-    var sp      = parseFloat(document.getElementById('ex-spread').value);
+    var sp      = parseFloat(document.getElementById('ex-spread').value) || 0;
     var getCur  = document.getElementById('ex-get-cur').value;
     var giveCur = document.getElementById('ex-give-cur').value;
     var hint    = document.getElementById('ex-calc-hint');
 
     if (!rt) { hint.textContent = ''; return; }
 
-    if (!sp) {
+    if (isNaN(sp)) {
       if (ga && ra) {
         var mv = ga * rt;
         var actualSpread = mv > 0 ? ((ra - mv) / mv * 100) : 0;
