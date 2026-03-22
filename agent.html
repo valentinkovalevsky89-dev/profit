@@ -314,6 +314,28 @@ var AGENTS_LIST = AGENTS_PARAM
 
 var dealQueue = [];
 
+function saveQueue() {
+  try { localStorage.setItem('dealQueue_v1', JSON.stringify(dealQueue)); } catch(e){}
+}
+function loadQueue() {
+  try {
+    var s = localStorage.getItem('dealQueue_v1');
+    if (s) {
+      var q = JSON.parse(s);
+      // Remove already-sent items older than 1 hour
+      var now = Date.now();
+      dealQueue = q.filter(function(d){
+        if (d.status === 'sent') return (now - d.id) < 3600000;
+        return true;
+      });
+    }
+  } catch(e){}
+}
+function clearSentFromQueue() {
+  dealQueue = dealQueue.filter(function(d){ return d.status !== 'sent'; });
+  saveQueue();
+}
+
 function getSelectedAgent() {
   var sel = document.getElementById('agent-select');
   return sel ? sel.value : '';
@@ -364,6 +386,8 @@ if (!AGENTS_LIST.length || !GS_URL) {
     ownerTrSel.appendChild(opt);
   });
   if (AGENTS_LIST.length > 1) ownerTrSel.value = AGENTS_LIST[1];
+  loadQueue();
+  renderQueue();
   fetchRate();
 }
 
@@ -514,6 +538,7 @@ document.getElementById('btn-add-queue').addEventListener('click', function() {
   document.getElementById('note').value     = '';
   document.getElementById('calc-hint').innerHTML = '<div><div class="calc-hint-label">Профит от сделки</div>'
     + '<div style="color:var(--muted);font-size:11px;margin-top:3px;">введи суммы и курс</div></div>';
+  saveQueue();
   renderQueue();
   showToast('✓ Добавлено в очередь');
 });
@@ -564,7 +589,7 @@ document.getElementById('queue-list').addEventListener('click', function(e) {
     var action = t.getAttribute('data-action');
     var qid = parseFloat(t.getAttribute('data-qid'));
     if (action === 'send') { sendQueueDeal(qid); return; }
-    if (action === 'del')  { dealQueue = dealQueue.filter(function(d){ return d.id !== qid; }); renderQueue(); return; }
+    if (action === 'del')  { dealQueue = dealQueue.filter(function(d){ return d.id !== qid; }); saveQueue(); renderQueue(); return; }
     t = t.parentNode;
   }
 });
@@ -590,8 +615,8 @@ function sendQueueDeal(id) {
     + '&date='       + encodeURIComponent(d.date)
     + '&time='       + encodeURIComponent(d.time);
   fetch(url, {mode: 'no-cors'})
-    .then(function(){ d.status = 'sent'; renderQueue(); })
-    .catch(function(){ d.status = 'error'; renderQueue(); showToast('Ошибка отправки', true); });
+    .then(function(){ d.status = 'sent'; saveQueue(); renderQueue(); })
+    .catch(function(){ d.status = 'error'; saveQueue(); renderQueue(); showToast('Ошибка отправки', true); });
 }
 
 // CASHFLOW
