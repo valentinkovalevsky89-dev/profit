@@ -681,25 +681,17 @@ function loadBalance() {
   card.style.display = '';
   body.innerHTML = '<div style="color:var(--muted);font-size:11px;"><span class="spin">⟳</span> Загрузка...</div>';
 
-  var cbName = 'balCb_' + Date.now();
-  var script = document.createElement('script');
+  var SYM2  = {eur:'€', huf:'Ft', usdt:'USDT', usd:'$', czk:'Kč'};
+  var CURS2 = ['usdt','eur','huf','usd','czk'];
+  var bal   = {usdt:0, eur:0, huf:0, usd:0, czk:0};
 
-  window[cbName] = function(data) {
-    delete window[cbName];
-    if (document.body.contains(script)) document.body.removeChild(script);
+  var results = {deals: null, transfers: null, capital: null};
 
-    if (!data.ok || !data.rows) {
-      body.innerHTML = '<div style="color:var(--red);font-size:11px;">Ошибка загрузки</div>';
-      return;
-    }
+  function tryRender() {
+    if (results.deals === null || results.transfers === null || results.capital === null) return;
 
-    // Calculate balance from deals
-    var SYM2 = {eur:'€', huf:'Ft', usdt:'USDT', usd:'$', czk:'Kč'};
-    var CURS2 = ['usdt','eur','huf','usd','czk'];
-    var bal = {usdt:0, eur:0, huf:0, usd:0, czk:0};
-
-    data.rows.forEach(function(r) {
-      // Only count this agent's deals
+    // 1. Deals — agent's own exchanges
+    (results.deals || []).forEach(function(r) {
       if ((r.agent || '').toLowerCase() !== agentName.toLowerCase()) return;
       var gc = (r.givecur  || '').toLowerCase();
       var rc = (r.getcur   || '').toLowerCase();
@@ -708,6 +700,29 @@ function loadBalance() {
       if (CURS2.indexOf(gc) !== -1) bal[gc] -= ga;
       if (CURS2.indexOf(rc) !== -1) bal[rc] += ra;
     });
+
+    // 2. Transfers — agent gave or received funds
+    (results.transfers || []).forEach(function(r) {
+      var from = (r.fromAgent || '').toLowerCase();
+      var to   = (r.toAgent   || '').toLowerCase();
+      var me   = agentName.toLowerCase();
+      var cur  = (r.cur || '').toLowerCase();
+      var amt  = parseFloat(r.amt) || 0;
+      if (CURS2.indexOf(cur) === -1) return;
+      if (from === me) bal[cur] -= amt;
+      if (to   === me) bal[cur] += amt;
+    });
+
+    // 3. Capital flows — only for owner role
+    if (IS_OWNER) {
+      (results.capital || []).forEach(function(r) {
+        var cur = (r.cur || '').toLowerCase();
+        var amt = parseFloat(r.amt) || 0;
+        if (CURS2.indexOf(cur) === -1) return;
+        if (r.type === 'Пополнение' || r.type === 'in') bal[cur] += amt;
+        if (r.type === 'Вывод'      || r.type === 'out') bal[cur] -= amt;
+      });
+    }
 
     // Render
     var h = '';
@@ -727,19 +742,33 @@ function loadBalance() {
         + '</div>';
     });
 
-    if (!hasAny) h = '<div style="color:var(--muted);font-size:11px;">Нет сделок</div>';
+    if (!hasAny) h = '<div style="color:var(--muted);font-size:11px;">Нет операций</div>';
     body.innerHTML = h;
     upd.textContent = 'обновлено · ' + nowTime();
-  };
+  }
 
-  script.onerror = function() {
-    delete window[cbName];
-    if (document.body.contains(script)) document.body.removeChild(script);
-    body.innerHTML = '<div style="color:var(--red);font-size:11px;">Ошибка загрузки</div>';
-  };
+  function makeJsonpLoader(action, key) {
+    var cb = 'balCb_' + key + '_' + Date.now();
+    var s  = document.createElement('script');
+    window[cb] = function(data) {
+      delete window[cb];
+      if (document.body.contains(s)) document.body.removeChild(s);
+      results[key] = (data.ok && data.rows) ? data.rows : [];
+      tryRender();
+    };
+    s.onerror = function() {
+      delete window[cb];
+      if (document.body.contains(s)) document.body.removeChild(s);
+      results[key] = [];
+      tryRender();
+    };
+    s.src = GS_URL + '?action=' + action + '&callback=' + cb;
+    document.body.appendChild(s);
+  }
 
-  script.src = GS_URL + '?action=read&callback=' + cbName;
-  document.body.appendChild(script);
+  makeJsonpLoader('read',      'deals');
+  makeJsonpLoader('transfers', 'transfers');
+  makeJsonpLoader('capital',   'capital');
 }
 
 document.getElementById('btn-refresh-balance').addEventListener('click', loadBalance);

@@ -333,6 +333,7 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
       <button class="btn btn-o" id="btn-ex-import">↑ JSON</button>
       <input type="file" id="imp-file" accept=".json" style="display:none">
       <button class="btn btn-g" id="btn-gsheets" style="font-size:10px;padding:9px 11px;">⬇ Google Sheets</button>
+      <button class="btn btn-o" id="btn-term-links" style="font-size:10px;padding:9px 11px;">🔗 Терминалы</button>
       <button class="btn btn-r" id="btn-ex-reset">Сброс</button>
     </div>
   </div>
@@ -1647,16 +1648,64 @@ function rebuildRounds() {
 }
 
 function exportExCsv() {
+  var gsUrl = localStorage.getItem('gs_url');
+  if (gsUrl) {
+    var btn = document.getElementById('btn-ex-csv');
+    btn.innerHTML = '<span class="spin">⟳</span>';
+    btn.disabled = true;
+    var cb = 'csvExport_' + Date.now();
+    var s  = document.createElement('script');
+    window[cb] = function(data) {
+      delete window[cb];
+      if (document.body.contains(s)) document.body.removeChild(s);
+      btn.innerHTML = '↓ CSV'; btn.disabled = false;
+      if (!data.ok || !data.rows || !data.rows.length) { alert('Нет данных в Google Sheets'); return; }
+      var rows = [['#','Дата','Время','Агент','Отдал','Вал.отдал','Получил','Вал.получил','Курс','Прибыль','%','Клиент','Заметка']];
+      data.rows.forEach(function(r, i) {
+        rows.push([i+1, r.date||'', r.time||'', (r.agent||'').toUpperCase(),
+          r.giveamount||'', (r.givecur||'').toUpperCase(),
+          r.getamount||'',  (r.getcur||'').toUpperCase(),
+          r.rate||'', r.profit||'', r.pct||'', r.client||'', r.note||'']);
+      });
+      downloadCsv(rows, 'exchange_gs_' + todayForFile() + '.csv');
+    };
+    s.onerror = function() {
+      delete window[cb];
+      if (document.body.contains(s)) document.body.removeChild(s);
+      btn.innerHTML = '↓ CSV'; btn.disabled = false;
+      exportExCsvLocal();
+    };
+    s.src = gsUrl + '?action=read&callback=' + cb;
+    document.body.appendChild(s);
+  } else {
+    exportExCsvLocal();
+  }
+}
+
+function exportExCsvLocal() {
   if (!exState.deals.length) { alert('Нет сделок'); return; }
-  var rows=[['#','Дата','Время','Агент','Отдал','Вал','Получил','Вал','Курс','Прибыль','%','Клиент','Заметка']];
-  exState.deals.forEach(function(d,i){
-    rows.push([i+1,d.date,d.time,d.agent.toUpperCase(),d.giveAmount,d.giveCur.toUpperCase(),
-      d.getAmount,d.getCur.toUpperCase(),d.rate,d.profit.toFixed(2),d.pct,d.client,d.note]);
+  var rows = [['#','Дата','Время','Агент','Отдал','Вал.отдал','Получил','Вал.получил','Курс','Прибыль','%','Клиент','Заметка']];
+  exState.deals.forEach(function(d, i) {
+    rows.push([i+1, d.date, d.time, (d.agent||'').toUpperCase(),
+      d.giveAmount, d.giveCur.toUpperCase(), d.getAmount, d.getCur.toUpperCase(),
+      d.rate, d.profit.toFixed(2), d.pct, d.client||'', d.note||'']);
   });
-  var csv=rows.map(function(r){return r.map(function(v){return'"'+(v||'')+'"';}).join(',');}).join('\n');
-  var a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
-  a.download='exchange.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  downloadCsv(rows, 'exchange_' + todayForFile() + '.csv');
+}
+
+function downloadCsv(rows, filename) {
+  var csv = rows.map(function(row) {
+    return row.map(function(v) {
+      var s = String(v === null || v === undefined ? '' : v);
+      if (s.indexOf(';') !== -1 || s.indexOf('\n') !== -1 || s.indexOf('"') !== -1)
+        return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    }).join(';');
+  }).join('\n');
+  var a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
 function resetEx() {
@@ -1791,44 +1840,50 @@ document.getElementById("btn-ex-report").addEventListener("click", function() {
   var todayDeals = exState.deals.filter(function(d){ return d.date === todayStr; });
   if (!todayDeals.length) { alert("Сегодня сделок нет"); return; }
 
-  // — Profits today by currency
-  var todayProfits = {};
-  todayDeals.forEach(function(d) {
-    if (!todayProfits[d.getCur]) todayProfits[d.getCur] = 0;
-    todayProfits[d.getCur] += d.profit;
-  });
-
-  // — Closed rounds today (rounds2)
-  var todayRounds = (exState.rounds2 || []).filter(function(r){
-    return r.status === 'closed' && r.closedDate === todayStr;
-  });
-
-  // — Open round (if any)
+  // — Open round
   var openR2 = exState.openRound2
     ? (exState.rounds2 || []).find(function(r){ return r.id === exState.openRound2; })
     : null;
 
-  // — Agent breakdown for today's deals — use agentSpread from rebuildRounds
-  // Filter to today only by re-running spread calc on today's deals
+  // — Closed rounds today
+  var todayRounds = (exState.rounds2 || []).filter(function(r){
+    return r.status === 'closed' && r.closedDate === todayStr;
+  });
+
+  // — All agent ids
   var allAgentIds = ['owner'].concat(agentCfg.agents.map(function(a){ return a.id; }));
+
+  // — Today's oборот per agent (giveAmount in USDT equiv — approximate via getAmount for USDT deals)
+  var agentVolume = {};
+  var totalVolume = 0;
+  allAgentIds.forEach(function(id){ agentVolume[id] = 0; });
+  var fallbackRates = {eur:1.08, huf:0.0026, usd:1, czk:0.043, usdt:1};
+  todayDeals.forEach(function(d) {
+    var aid = d.agent || 'owner';
+    if (!agentVolume[aid]) agentVolume[aid] = 0;
+    // Use getAmount if getCur is USDT, else giveAmount converted
+    var vol = 0;
+    if (d.getCur === 'usdt') vol = d.getAmount;
+    else if (d.giveCur === 'usdt') vol = d.giveAmount;
+    else vol = d.giveAmount * (fallbackRates[d.giveCur] || 0);
+    agentVolume[aid] += vol;
+    totalVolume += vol;
+  });
+
+  // — Agent spread today (by deal)
   var agentDaySpread = {};
   allAgentIds.forEach(function(id){ agentDaySpread[id] = {}; });
-
-  // Replay today's deals through pools to get today's spread per agent
-  // Simple approximation: use global agentSpread ratio applied to today's portion
-  // For accuracy we just sum today's deals' profits by agent normally
   todayDeals.forEach(function(d) {
-    var agentId = d.agent || 'owner';
+    var agentId  = d.agent || 'owner';
     var agentObj = getAgent(agentId);
-    var agentFrac = agentObj && agentId !== 'owner' ? (agentObj.pct / 100) : 0;
-    var ownerFrac = 1 - agentFrac;
+    var agentFrac = (agentObj && agentId !== 'owner') ? (agentObj.pct / 100) : 0;
     if (!agentDaySpread[agentId]) agentDaySpread[agentId] = {};
     if (!agentDaySpread['owner'])  agentDaySpread['owner']  = {};
     agentDaySpread[agentId][d.getCur] = (agentDaySpread[agentId][d.getCur] || 0) + d.profit * agentFrac;
-    agentDaySpread['owner'][d.getCur] = (agentDaySpread['owner'][d.getCur]  || 0) + d.profit * ownerFrac;
+    agentDaySpread['owner'][d.getCur] = (agentDaySpread['owner'][d.getCur]  || 0) + d.profit * (1 - agentFrac);
   });
 
-  // Realized USDT from today's closed rounds2 per agent
+  // — Agent realized from today's closed rounds
   var agentRealized = {};
   allAgentIds.forEach(function(id){ agentRealized[id] = 0; });
   todayRounds.forEach(function(r) {
@@ -1838,105 +1893,190 @@ document.getElementById("btn-ex-report").addEventListener("click", function() {
     });
   });
 
-  // Active pools summary
-  var poolSummary = {};
-  allAgentIds.forEach(function(id){ poolSummary[id] = {out:{}, in:{}}; });
-  (exState.attributionPools || []).forEach(function(p) {
-    if (!poolSummary[p.fromAgent]) poolSummary[p.fromAgent] = {out:{}, in:{}};
-    if (!poolSummary[p.toAgent])   poolSummary[p.toAgent]   = {out:{}, in:{}};
-    poolSummary[p.fromAgent].out[p.cur] = (poolSummary[p.fromAgent].out[p.cur]||0) + p.remainingAmt;
-    poolSummary[p.toAgent].in[p.cur]    = (poolSummary[p.toAgent].in[p.cur]||0)   + p.remainingAmt;
+  // — Agent deal count today
+  var agentDealCount = {};
+  allAgentIds.forEach(function(id){ agentDealCount[id] = 0; });
+  todayDeals.forEach(function(d) {
+    var aid = d.agent || 'owner';
+    if (!agentDealCount[aid]) agentDealCount[aid] = 0;
+    agentDealCount[aid]++;
   });
 
-  // — Build report lines
-  var lines = [];
-  lines.push("📊 Отчёт за " + todayStr);
-  lines.push("Сделок сегодня: " + todayDeals.length);
-
-  // Profit by currency
-  lines.push("");
-  lines.push("💰 Общий профит по сделкам:");
-  var hasProfits = false;
-  CURS.forEach(function(c) {
-    var v = todayProfits[c];
-    if (!v || Math.abs(v) < 0.001) return;
-    hasProfits = true;
-    lines.push("  " + c.toUpperCase() + ": " + (v>=0?"+":"") + fmt(v,c));
-  });
-  if (!hasProfits) lines.push("  —");
-
-  // Closed rounds today
-  if (todayRounds.length) {
-    lines.push("");
-    lines.push("✅ Закрытые раунды:");
-    todayRounds.forEach(function(r) {
-      var u = r.profitUsdt || 0;
-      lines.push("  " + r.name + ": " + (u>=0?"+":"") + u.toFixed(2) + " USDT"
-        + " (" + r.snapshotUsdt.toFixed(0) + " → " + r.closedUsdt.toFixed(0) + ")");
-    });
-  }
-
-  // Open round
-  if (openR2) {
-    lines.push("");
-    lines.push("🔄 Открытый раунд: " + openR2.name);
-    lines.push("  открыт " + openR2.openedDate + " " + openR2.openedTime);
-    lines.push("  портфель при открытии: " + openR2.snapshotUsdt.toFixed(2) + " USDT");
-  }
-
-  // Agent breakdown — two methods
-  lines.push("");
-  lines.push("👤 По агентам (сегодня):");
-  var ownerObj = {id:'owner', name: agentCfg.ownerName || 'Владелец'};
-  [ownerObj].concat(agentCfg.agents).forEach(function(a) {
-    var ds = agentDaySpread[a.id] || {};
-    var rz = agentRealized[a.id] || 0;
-    var ps = poolSummary[a.id] || {out:{}, in:{}};
-
-    var spreadParts = [];
-    CURS.forEach(function(c){
-      var v = ds[c];
-      if (v && Math.abs(v) >= 0.001) spreadParts.push((v>=0?"+":"") + fmt(v,c));
-    });
-
-    if (!spreadParts.length && Math.abs(rz) < 0.001) return;
-
-    lines.push("  " + a.name + ":");
-    lines.push("    спред:    " + (spreadParts.length ? spreadParts.join(", ") : "—"));
-    if (Math.abs(rz) >= 0.001) {
-      lines.push("    по кругу: " + (rz>=0?"+":"") + rz.toFixed(2) + " USDT");
+  // — Agent holdings
+  var holdAllIds = ['owner'].concat(agentCfg.agents.map(function(a){return a.id;}));
+  var holdMap = {};
+  holdAllIds.forEach(function(id){ holdMap[id] = {eur:0,huf:0,usdt:0,usd:0,czk:0}; });
+  (exState.cashflows || []).forEach(function(cf) {
+    if (cf.type === 'in')  { holdMap['owner'][cf.cur] += cf.amt; }
+    if (cf.type === 'out') { holdMap['owner'][cf.cur] -= cf.amt; }
+    if (cf.type === 'transfer') {
+      if (!holdMap[cf.fromAgent]) holdMap[cf.fromAgent] = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+      if (!holdMap[cf.toAgent])   holdMap[cf.toAgent]   = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+      holdMap[cf.fromAgent][cf.cur] -= cf.amt;
+      holdMap[cf.toAgent][cf.cur]   += cf.amt;
     }
-    // Pool status
+  });
+  exState.deals.forEach(function(d) {
+    var aid = d.agent || 'owner';
+    if (!holdMap[aid]) holdMap[aid] = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+    holdMap[aid][d.giveCur] -= d.giveAmount;
+    holdMap[aid][d.getCur]  += d.getAmount;
+  });
+
+  // — Helper: convert spread map to USDT using rates
+  function spreadToUsdt(ds, rates) {
+    var total = 0;
     CURS.forEach(function(c) {
-      if ((ps.out[c]||0) > 0.001) lines.push("    ↑ выдано: " + fmt(ps.out[c],c) + " (в работе у коллег)");
-      if ((ps.in[c]||0)  > 0.001) lines.push("    ↓ получено: " + fmt(ps.in[c],c) + " (чужой капитал)");
+      var v = ds[c] || 0;
+      var r = (c === 'usdt') ? 1 : (rates[c] || fallbackRates[c] || 0);
+      total += v * r;
     });
-  });
+    return total;
+  }
 
-  // Balances
-  lines.push("");
-  lines.push("📦 Балансы:");
-  CURS.forEach(function(c) {
-    var bal = exState.balances[c];
-    if (Math.abs(bal) < 0.001 && cap(c) === 0) return;
-    lines.push("  " + c.toUpperCase() + ": " + fmt(bal,c) + " (капитал: " + fmt(cap(c),c) + ")");
-  });
+  // — Build report with live rates
+  function buildReport(liveRates) {
+    var rates = liveRates || fallbackRates;
+    var lines = [];
 
-  var text = lines.join("\n");
+    // — Total day profit in USDT (spread method)
+    var totalDayProfitUsdt = 0;
+    todayDeals.forEach(function(d) {
+      var r = (d.getCur === 'usdt') ? 1 : (rates[d.getCur] || fallbackRates[d.getCur] || 0);
+      totalDayProfitUsdt += d.profit * r;
+    });
 
-  // Copy to clipboard
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(function() {
+    // Header
+    lines.push("📊 Отчёт за " + todayStr);
+    lines.push("Сделок: " + todayDeals.length + "  ·  оборот: ~" + Math.round(totalVolume).toLocaleString('ru') + " USDT");
+    var ts = totalDayProfitUsdt >= 0 ? "+" : "";
+    lines.push("💵 Итог дня: " + ts + totalDayProfitUsdt.toFixed(2) + " USDT");
+
+    // Profit by currency
+    lines.push("");
+    lines.push("💰 Профит по валютам:");
+    var hasProfits = false;
+    CURS.forEach(function(c) {
+      var v = 0;
+      todayDeals.forEach(function(d){ if (d.getCur === c) v += d.profit; });
+      if (Math.abs(v) < 0.001) return;
+      hasProfits = true;
+      lines.push("  " + c.toUpperCase() + ": " + (v>=0?"+":"") + fmt(v,c));
+    });
+    if (!hasProfits) lines.push("  —");
+
+    // Closed rounds today
+    if (todayRounds.length) {
+      lines.push("");
+      lines.push("✅ Закрытые раунды:");
+      todayRounds.forEach(function(r) {
+        var u = r.profitUsdt || 0;
+        lines.push("  " + r.name + ": " + (u>=0?"+":"") + u.toFixed(2) + " USDT"
+          + " (" + r.snapshotUsdt.toFixed(0) + " → " + r.closedUsdt.toFixed(0) + ")");
+      });
+    }
+
+    // Open round
+    if (openR2) {
+      lines.push("");
+      lines.push("🔄 Открытый раунд: " + openR2.name);
+      lines.push("  открыт " + openR2.openedDate + " " + openR2.openedTime);
+    }
+
+    // Agent breakdown — two methods
+    lines.push("");
+    lines.push("👤 По агентам:");
+    var ownerPctVal = ownerPct ? ownerPct() : 100;
+    var agentsList = [{id:'owner', name: agentCfg.ownerName || 'Владелец', pct: ownerPctVal}]
+      .concat(agentCfg.agents.map(function(a){ return {id:a.id, name:a.name, pct:a.pct}; }));
+
+    agentsList.forEach(function(a) {
+      var cnt  = agentDealCount[a.id] || 0;
+      var vol  = agentVolume[a.id] || 0;
+      var ds   = agentDaySpread[a.id] || {};
+      var rz   = agentRealized[a.id] || 0;
+      var sp1  = spreadToUsdt(ds, rates);
+
+      if (!cnt && Math.abs(rz) < 0.001) return;
+
+      lines.push("  " + a.name + " (" + a.pct + "%) · " + cnt + " сд. · ~" + Math.round(vol).toLocaleString('ru') + " USDT:");
+      lines.push("    метод 1 · спред:    " + (sp1>=0?"+":"") + sp1.toFixed(2) + " USDT");
+      lines.push("    метод 2 · по кругу: " + (rz>=0?"+":"") + rz.toFixed(2) + " USDT");
+    });
+
+    // Capital delta
+    lines.push("");
+    lines.push("📦 Капитал кассы:");
+    CURS.forEach(function(c) {
+      var initial = cap(c);
+      var current = exState.balances[c];
+      if (Math.abs(initial) < 0.001 && Math.abs(current) < 0.001) return;
+      var delta = current - initial;
+      var dsign = delta >= 0 ? "+" : "";
+      lines.push("  " + c.toUpperCase() + ": " + fmt(initial,c) + " → " + fmt(current,c) + " (" + dsign + fmt(delta,c) + ")");
+    });
+
+    // Agent holdings
+    lines.push("");
+    lines.push("🤲 На руках:");
+    var holdAgents = [{id:'owner', name: agentCfg.ownerName || 'Владелец'}]
+      .concat(agentCfg.agents.map(function(a){ return {id:a.id, name:a.name}; }));
+    holdAgents.forEach(function(a) {
+      var h = holdMap[a.id] || {};
+      var parts = [];
+      CURS.forEach(function(c){
+        var v = h[c];
+        if (!v || Math.abs(v) < 0.001) return;
+        parts.push((v>=0?"+":"") + fmt(v,c));
+      });
+      if (!parts.length) return;
+      lines.push("  " + a.name + ": " + parts.join(" · "));
+    });
+
+    // Unrealized profit — only if round open
+    if (openR2) {
+      var totalUnreal = 0;
+      var unrealParts = [];
+      var hasUnreal = false;
+      CURS.forEach(function(c) {
+        var v = exState.profits[c];
+        if (!v || Math.abs(v) < 0.001) return;
+        hasUnreal = true;
+        unrealParts.push(c.toUpperCase() + ": " + (v>=0?"+":"") + fmt(v,c));
+        var r = (c === 'usdt') ? 1 : (rates[c] || fallbackRates[c] || 0);
+        totalUnreal += v * r;
+      });
+      if (hasUnreal) {
+        lines.push("");
+        lines.push("📈 Нереализованная прибыль (раунд открыт):");
+        unrealParts.forEach(function(p){ lines.push("  " + p); });
+        var us = totalUnreal >= 0 ? "+" : "";
+        lines.push("  Итого: " + us + totalUnreal.toFixed(2) + " USDT");
+      }
+    }
+
+    return lines.join("\n");
+  }
+
+  function copyReport(text) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        alert("Отчёт скопирован в буфер обмена");
+      });
+    } else {
+      var ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy");
+      document.body.removeChild(ta);
       alert("Отчёт скопирован в буфер обмена");
-    });
+    }
+  }
+
+  // Fetch live rates if round is open, else use fallback
+  if (openR2) {
+    fetchAllRatesUsdt().then(function(r){ copyReport(buildReport(r)); }).catch(function(){ copyReport(buildReport(null)); });
   } else {
-    var ta = document.createElement("textarea");
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
-    alert("Отчёт скопирован в буфер обмена");
+    copyReport(buildReport(null));
   }
 });
 
@@ -2363,6 +2503,18 @@ setTimeout(function autoLoadOnStartup() {
   </div>
 </div>
 
+<!-- ===== TERMINAL LINKS MODAL ===== -->
+<div class="modal-overlay hidden" id="term-links-modal">
+  <div class="modal" style="width:480px;">
+    <div class="modal-title">
+      <button class="modal-close" id="term-links-close">✕</button>
+      🔗 ССЫЛКИ ТЕРМИНАЛОВ
+    </div>
+    <div class="modal-hint">Готовые ссылки для каждого агента. Скопируй и отправь.</div>
+    <div id="term-links-body" style="display:flex;flex-direction:column;gap:12px;margin-top:4px;"></div>
+  </div>
+</div>
+
 <!-- ===== GOOGLE SHEETS MODAL ===== -->
 <div class="modal-overlay hidden" id="gsheets-modal">
   <div class="modal">
@@ -2738,6 +2890,93 @@ function showGsStep(step) {
   document.getElementById('gs-step-config').style.display  = step === 'config'  ? '' : 'none';
   document.getElementById('gs-step-preview').style.display = step === 'preview' ? '' : 'none';
 }
+
+// ================================================================
+// TERMINAL LINKS MODAL
+// ================================================================
+document.getElementById('btn-term-links').addEventListener('click', function() {
+  var modal = document.getElementById('term-links-modal');
+  var body  = document.getElementById('term-links-body');
+  modal.classList.remove('hidden');
+
+  var gsUrl = localStorage.getItem('gs_url') || '';
+  var baseUrl = window.location.href.replace(/index\.html.*$/, '').replace(/\?.*$/, '');
+  if (!baseUrl.endsWith('/')) baseUrl += '/';
+  var agentFile = baseUrl + 'agent.html';
+
+  // Build list: owner first, then agents
+  var allAgents = [];
+  allAgents.push({
+    name: agentCfg.ownerName || 'Директор',
+    isOwner: true
+  });
+  agentCfg.agents.forEach(function(a) {
+    allAgents.push({ name: a.name, isOwner: false });
+  });
+
+  var allNames = allAgents.map(function(a){ return a.name; });
+
+  body.innerHTML = '';
+  allAgents.forEach(function(agent) {
+    // agents param: own name first, then others
+    var others = allNames.filter(function(n){ return n !== agent.name; });
+    var agentsParam = [agent.name].concat(others).join(',');
+
+    var params = 'agents=' + encodeURIComponent(agentsParam);
+    if (agent.isOwner) params += '&role=owner';
+    if (gsUrl) params += '&gs=' + encodeURIComponent(gsUrl);
+    params += '&v=64';
+
+    var url = agentFile + '?' + params;
+
+    var row = document.createElement('div');
+    row.style.cssText = 'background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;';
+
+    var label = document.createElement('div');
+    label.style.cssText = 'font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;';
+    label.textContent = agent.name + (agent.isOwner ? ' (владелец)' : ' (агент)');
+
+    var urlBox = document.createElement('div');
+    urlBox.style.cssText = 'font-size:10px;color:var(--fg);word-break:break-all;background:rgba(255,255,255,.04);border-radius:4px;padding:6px 8px;margin-bottom:8px;font-family:monospace;';
+    urlBox.textContent = url;
+
+    var btn = document.createElement('button');
+    btn.className = 'btn btn-o';
+    btn.style.cssText = 'width:100%;font-size:11px;padding:7px;';
+    btn.textContent = '📋 Скопировать ссылку';
+    btn.addEventListener('click', function() {
+      navigator.clipboard ? navigator.clipboard.writeText(url).then(function(){
+        btn.textContent = '✓ Скопировано!';
+        setTimeout(function(){ btn.textContent = '📋 Скопировать ссылку'; }, 2000);
+      }) : (function(){
+        var ta = document.createElement('textarea');
+        ta.value = url; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        btn.textContent = '✓ Скопировано!';
+        setTimeout(function(){ btn.textContent = '📋 Скопировать ссылку'; }, 2000);
+      })();
+    });
+
+    row.appendChild(label);
+    row.appendChild(urlBox);
+    row.appendChild(btn);
+    body.appendChild(row);
+  });
+
+  if (!gsUrl) {
+    var warn = document.createElement('div');
+    warn.style.cssText = 'font-size:11px;color:var(--red);margin-top:4px;';
+    warn.textContent = '⚠ GS URL не задан — сначала загрузи данные через Google Sheets';
+    body.appendChild(warn);
+  }
+});
+
+document.getElementById('term-links-close').addEventListener('click', function() {
+  document.getElementById('term-links-modal').classList.add('hidden');
+});
+document.getElementById('term-links-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.add('hidden');
+});
 
 // Normalize currency string from form
 // Normalize date — strips full Date.toString() to dd.mm format
