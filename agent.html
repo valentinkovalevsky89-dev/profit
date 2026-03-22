@@ -233,6 +233,8 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
 
     <!-- КАПИТАЛ (владелец) -->
     <div id="owner-panel" class="hidden">
+
+      <!-- Движение капитала -->
       <div class="card owner-card">
         <div class="card-title" style="color:var(--gold);">💰 Движение капитала</div>
         <div class="row2">
@@ -260,6 +262,37 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
           <button class="btn btn-r" id="btn-cf-out">↓ Вывод</button>
         </div>
       </div>
+
+      <!-- Передача средств агенту -->
+      <div class="card owner-card">
+        <div class="card-title" style="color:var(--czk);">↔ Передача средств</div>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Кому передаю</label>
+          <select id="owner-tr-to-agent" style="font-size:14px;font-weight:700;color:var(--czk);"></select>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>Сумма</label>
+            <input type="number" id="owner-tr-amt" placeholder="5000" inputmode="decimal">
+          </div>
+          <div class="field">
+            <label>Валюта</label>
+            <select id="owner-tr-cur">
+              <option value="eur">EUR</option>
+              <option value="usdt">USDT</option>
+              <option value="huf">HUF</option>
+              <option value="usd">USD</option>
+              <option value="czk">CZK</option>
+            </select>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>Заметка</label>
+          <input type="text" id="owner-tr-note" placeholder="операционные, покрытие разрыва...">
+        </div>
+        <button class="btn" id="btn-owner-tr-submit" style="background:var(--czk);color:#070a10;font-weight:700;">ПЕРЕДАТЬ →</button>
+      </div>
+
     </div>
 
   </div>
@@ -322,6 +355,15 @@ if (!AGENTS_LIST.length || !GS_URL) {
     trSel.appendChild(opt);
   });
   if (AGENTS_LIST.length > 1) trSel.value = AGENTS_LIST[1];
+
+  // Owner transfer selector — all agents except self
+  var ownerTrSel = document.getElementById('owner-tr-to-agent');
+  AGENTS_LIST.forEach(function(name) {
+    var opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    ownerTrSel.appendChild(opt);
+  });
+  if (AGENTS_LIST.length > 1) ownerTrSel.value = AGENTS_LIST[1];
   fetchRate();
 }
 
@@ -576,7 +618,7 @@ function sendCashflow(type) {
 document.getElementById('btn-cf-in').addEventListener('click',  function(){ sendCashflow('in'); });
 document.getElementById('btn-cf-out').addEventListener('click', function(){ sendCashflow('out'); });
 
-// TRANSFER
+// TRANSFER (agents)
 document.getElementById('btn-tr-submit').addEventListener('click', function() {
   var toAgent = document.getElementById('tr-to-agent').value;
   var amt     = parseFloat(document.getElementById('tr-amt').value);
@@ -681,6 +723,30 @@ document.getElementById('btn-refresh-balance').addEventListener('click', loadBal
 setTimeout(loadBalance, 500);
 
 // ================================================================
+// TRANSFER (owner)
+document.getElementById('btn-owner-tr-submit').addEventListener('click', function() {
+  var toAgent = document.getElementById('owner-tr-to-agent').value;
+  var amt     = parseFloat(document.getElementById('owner-tr-amt').value);
+  var cur     = document.getElementById('owner-tr-cur').value;
+  var note    = document.getElementById('owner-tr-note').value.trim();
+  var from    = getSelectedAgent();
+  if (!amt || amt <= 0) { showToast('Введи сумму', true); return; }
+  if (toAgent === from)  { showToast('Нельзя передать самому себе', true); return; }
+  var btn = this;
+  btn.innerHTML = '<span class="spin">⟳</span> Отправка...';
+  btn.disabled = true;
+  fetch(GS_URL, {
+    method: 'POST', mode: 'no-cors',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({type:'transfer', fromAgent:from, toAgent:toAgent, cur:cur, amt:amt, note:note, date:today(), time:nowTime()})
+  }).then(function(){
+    document.getElementById('owner-tr-amt').value  = '';
+    document.getElementById('owner-tr-note').value = '';
+    btn.innerHTML = 'ПЕРЕДАТЬ →'; btn.disabled = false;
+    showToast('✓ Передача записана');
+  }).catch(function(e){ btn.innerHTML = 'ПЕРЕДАТЬ →'; btn.disabled = false; showToast('Ошибка: ' + e.message, true); });
+});
+
 // TOAST
 function showToast(msg, isError) {
   var t = document.createElement('div');
