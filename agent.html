@@ -19,65 +19,65 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
 .header-logo{font-family:'Unbounded',sans-serif;font-size:11px;color:var(--green);letter-spacing:.05em;}
 .role-badge{border-radius:6px;padding:4px 12px;font-size:11px;font-weight:700;}
 .role-agent{background:rgba(38,217,160,.1);border:1px solid rgba(38,217,160,.3);color:var(--green);}
-.role-senior{background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.3);color:var(--gold);}
-.main{max-width:480px;margin:0 auto;padding:20px 16px 40px;}
+.role-owner{background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.3);color:var(--gold);}
+.main{max-width:480px;margin:0 auto;padding:20px 16px 60px;}
 .card{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:14px;}
 .card-title{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:16px;}
-.card.senior-card{border-color:rgba(255,209,102,.2);}
+.card.owner-card{border-color:rgba(255,209,102,.2);}
 .field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
 .field label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;}
-.field input,.field select{
-  background:var(--bg);border:1px solid var(--border);border-radius:9px;
-  color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;
-  padding:12px 14px;outline:none;transition:border-color .2s;width:100%;
-  -webkit-appearance:none;appearance:none;
-}
+.field input,.field select{background:var(--bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;padding:12px 14px;outline:none;transition:border-color .2s;width:100%;-webkit-appearance:none;appearance:none;}
 .field input:focus,.field select:focus{border-color:var(--green);}
 .field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234a5878' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;}
-.row{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end;margin-bottom:12px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.row3{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end;margin-bottom:12px;}
 .arrow{color:var(--muted);font-size:20px;padding-bottom:12px;text-align:center;}
-.rate-row{display:flex;gap:8px;align-items:flex-end;}
+.rate-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:4px;}
 .rate-row .field{flex:1;margin-bottom:0;}
 .rate-btn{background:none;border:1px solid var(--border);border-radius:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;padding:12px 14px;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0;}
 .rate-btn:hover{color:var(--text);border-color:var(--text);}
-.rate-src{font-size:10px;color:var(--muted);margin-top:4px;min-height:14px;}
+.rate-src{font-size:10px;color:var(--muted);margin-bottom:12px;min-height:14px;}
+.calc-hint{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;min-height:52px;}
+.calc-hint-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px;}
 .btn{width:100%;padding:16px;border:none;border-radius:11px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:.04em;}
 .btn-g{background:var(--green);color:#070a10;}.btn-g:hover{opacity:.88;}
 .btn-g:disabled{opacity:.4;cursor:not-allowed;}
 .btn-r{background:none;border:2px solid var(--red);color:var(--red);}.btn-r:hover{opacity:.8;}
 .btn-y{background:none;border:2px solid var(--gold);color:var(--gold);}.btn-y:hover{opacity:.8;}
-.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.btn-o{background:none;border:1px solid var(--border);color:var(--muted);border-radius:11px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;}
+.btn-o:hover{color:var(--text);border-color:var(--text);}
+.btn-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.queue-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.queue-title{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;}
+.queue-count{background:var(--green);color:#070a10;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700;}
+.queue-item{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;}
+.queue-item-info{flex:1;min-width:0;}
+.queue-item-main{font-size:12px;font-weight:600;margin-bottom:3px;}
+.queue-item-sub{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.queue-item-profit{font-size:12px;font-weight:700;text-align:right;white-space:nowrap;flex-shrink:0;}
+.queue-item-btns{display:flex;gap:6px;flex-shrink:0;}
+.qbtn{background:none;border:1px solid var(--border);border-radius:7px;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;padding:6px 10px;cursor:pointer;transition:all .2s;}
+.qbtn.send{border-color:var(--green);color:var(--green);}
+.qbtn.send:hover{background:rgba(38,217,160,.1);}
+.qbtn.del{border-color:var(--red);color:var(--red);}
+.qbtn.del:hover{background:rgba(255,92,122,.1);}
+.queue-empty{text-align:center;padding:20px;color:var(--muted);font-size:11px;border:1px dashed var(--border);border-radius:10px;}
 .tag{display:inline-block;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700;margin:0 2px;}
 .t-eur{background:rgba(79,142,247,.15);color:var(--eur);}
 .t-huf{background:rgba(240,167,50,.15);color:var(--huf);}
 .t-usdt{background:rgba(38,217,160,.15);color:var(--usdt);}
 .t-usd{background:rgba(255,92,122,.15);color:var(--usd);}
 .t-czk{background:rgba(180,139,247,.15);color:var(--czk);}
-.modal-overlay{position:fixed;inset:0;background:rgba(7,10,16,.9);backdrop-filter:blur(6px);z-index:100;display:flex;align-items:flex-end;justify-content:center;padding:20px;}
-.hidden{display:none !important;}
-.modal-overlay.hidden{display:none;}
-.modal{background:var(--s1);border:1px solid var(--border);border-radius:18px 18px 14px 14px;padding:24px;width:100%;max-width:480px;}
-.modal-title{font-family:'Unbounded',sans-serif;font-size:11px;color:var(--text);margin-bottom:18px;letter-spacing:.05em;}
-.confirm-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
-.confirm-row:last-of-type{border-bottom:none;}
-.confirm-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
-.confirm-val{font-size:13px;font-weight:700;}
-.modal-btns{display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-top:16px;}
-.btn-o{background:none;border:1px solid var(--border);color:var(--muted);border-radius:11px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;}
-.btn-o:hover{color:var(--text);border-color:var(--text);}
-.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--green);color:#070a10;padding:12px 24px;border-radius:10px;font-weight:700;font-size:12px;z-index:200;font-family:'JetBrains Mono',monospace;box-shadow:0 4px 20px rgba(38,217,160,.4);}
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--green);color:#070a10;padding:12px 24px;border-radius:10px;font-weight:700;font-size:12px;z-index:200;font-family:'JetBrains Mono',monospace;box-shadow:0 4px 20px rgba(38,217,160,.4);white-space:nowrap;}
 .toast.error{background:var(--red);box-shadow:0 4px 20px rgba(255,92,122,.4);}
 .no-config{text-align:center;padding:60px 20px;}
 .no-config-icon{font-size:48px;margin-bottom:16px;}
 .no-config-title{font-family:'Unbounded',sans-serif;font-size:14px;color:var(--text);margin-bottom:8px;}
 .no-config-sub{font-size:11px;color:var(--muted);line-height:1.6;}
-.round-status{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:12px 14px;margin-bottom:12px;font-size:11px;display:flex;align-items:center;justify-content:space-between;}
-.round-dot{width:8px;height:8px;border-radius:50%;margin-right:8px;display:inline-block;}
-.round-dot.open{background:var(--orange);}
-.round-dot.closed{background:var(--muted);}
 .spin{display:inline-block;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
-@media(max-width:480px){.main{padding:16px 12px 40px;}}
+.hidden{display:none !important;}
+@media(max-width:480px){.main{padding:16px 12px 60px;}}
 </style>
 </head>
 <body>
@@ -97,16 +97,16 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
 
   <div id="main-screen">
 
-    <!-- DEAL FORM -->
+    <!-- КАЛЬКУЛЯТОР -->
     <div class="card">
-      <div class="card-title">Новая сделка</div>
+      <div class="card-title">Калькулятор сделки</div>
 
       <div class="field" style="margin-bottom:14px;">
         <label>Агент</label>
         <select id="agent-select" style="font-size:14px;font-weight:700;color:var(--green);"></select>
       </div>
 
-      <div class="row">
+      <div class="row3">
         <div class="field">
           <label>Отдаю</label>
           <input type="number" id="give-amt" placeholder="10000" inputmode="decimal">
@@ -118,9 +118,9 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
         </div>
       </div>
 
-      <div class="row">
+      <div class="row2">
         <div class="field">
-          <label>Валюта</label>
+          <label>Валюта отдаю</label>
           <select id="give-cur">
             <option value="usdt">USDT</option>
             <option value="eur">EUR</option>
@@ -129,9 +129,8 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
             <option value="czk">CZK</option>
           </select>
         </div>
-        <div></div>
         <div class="field">
-          <label>Валюта</label>
+          <label>Валюта получаю</label>
           <select id="get-cur">
             <option value="eur">EUR</option>
             <option value="usdt">USDT</option>
@@ -144,34 +143,52 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
 
       <div class="rate-row">
         <div class="field">
-          <label id="rate-lbl">Курс (1 USDT = ? EUR)</label>
+          <label id="rate-lbl">Курс сделки (1 USDT = ? EUR)</label>
           <input type="number" id="rate" placeholder="0.8600" step="any" inputmode="decimal">
         </div>
-        <button class="rate-btn" id="btn-fetch-rate">⟳ Курс</button>
+        <button class="rate-btn" id="btn-fetch-rate">⟳ Рынок</button>
       </div>
       <div class="rate-src" id="rate-src"></div>
 
-      <div class="field" style="margin-bottom:14px;margin-top:4px;">
+      <div class="calc-hint" id="calc-hint">
+        <div>
+          <div class="calc-hint-label">Профит от сделки</div>
+          <div style="color:var(--muted);font-size:11px;margin-top:3px;">введи суммы и курс</div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px;">
         <label>Клиент / заметка</label>
         <input type="text" id="note" placeholder="@username или комментарий">
       </div>
 
-      <button class="btn btn-g" id="btn-submit">ПРОВЕРИТЬ И ОТПРАВИТЬ →</button>
+      <button class="btn btn-g" id="btn-add-queue">+ ДОБАВИТЬ В ОЧЕРЕДЬ</button>
     </div>
 
-    <!-- TRANSFER — available to all agents -->
+    <!-- ОЧЕРЕДЬ -->
+    <div class="card">
+      <div class="queue-header">
+        <div class="queue-title">Очередь сделок</div>
+        <div class="queue-count" id="queue-count">0</div>
+      </div>
+      <div id="queue-list">
+        <div class="queue-empty">Добавьте сделки выше</div>
+      </div>
+      <button class="btn btn-g hidden" id="btn-send-all" style="margin-top:10px;">✓ ОТПРАВИТЬ ВСЕ →</button>
+    </div>
+
+    <!-- ПЕРЕДАЧА (агенты) -->
     <div class="card" id="transfer-card" style="display:none">
       <div class="card-title" style="color:var(--czk);">↔ Передача средств коллеге</div>
       <div class="field" style="margin-bottom:12px;">
         <label>Кому передаю</label>
         <select id="tr-to-agent" style="font-size:14px;font-weight:700;color:var(--czk);"></select>
       </div>
-      <div class="row">
+      <div class="row2">
         <div class="field">
           <label>Сумма</label>
           <input type="number" id="tr-amt" placeholder="10000" inputmode="decimal">
         </div>
-        <div></div>
         <div class="field">
           <label>Валюта</label>
           <select id="tr-cur">
@@ -190,18 +207,15 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
       <button class="btn" id="btn-tr-submit" style="background:var(--czk);color:#070a10;font-weight:700;">ПЕРЕДАТЬ →</button>
     </div>
 
-    <!-- SENIOR ONLY: CASHFLOW + CLOSE ROUND -->
-    <div id="senior-panel" class="hidden">
-
-      <!-- CASHFLOW -->
-      <div class="card senior-card">
+    <!-- КАПИТАЛ (владелец) -->
+    <div id="owner-panel" class="hidden">
+      <div class="card owner-card">
         <div class="card-title" style="color:var(--gold);">💰 Движение капитала</div>
-        <div class="row">
+        <div class="row2">
           <div class="field">
             <label>Сумма</label>
             <input type="number" id="cf-amt" placeholder="5000" inputmode="decimal">
           </div>
-          <div></div>
           <div class="field">
             <label>Валюта</label>
             <select id="cf-cur">
@@ -217,75 +231,36 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
           <label>Заметка</label>
           <input type="text" id="cf-note" placeholder="пополнение, вывод прибыли...">
         </div>
-        <div class="btn-row">
+        <div class="btn-row2">
           <button class="btn btn-y" id="btn-cf-in">↑ Пополнение</button>
           <button class="btn btn-r" id="btn-cf-out">↓ Вывод</button>
         </div>
       </div>
-
-      <!-- CLOSE ROUND -->
-      <div class="card senior-card">
-        <div class="card-title" style="color:var(--gold);">⏹ Управление раундом</div>
-        <p style="font-size:11px;color:var(--muted);margin-bottom:14px;">Статус раунда смотри в Google Sheet → лист «Раунды»</p>
-        <button class="btn btn-r" id="btn-close-round">⏹ Закрыть раунд</button>
-      </div>
-
     </div>
 
-  </div>
-</div>
-
-<!-- CONFIRM MODAL -->
-<div class="modal-overlay hidden" id="confirm-modal">
-  <div class="modal">
-    <div class="modal-title">ПОДТВЕРДИТЕ СДЕЛКУ</div>
-    <div class="confirm-row">
-      <div class="confirm-lbl">Отдаю</div>
-      <div class="confirm-val" id="c-give"></div>
-    </div>
-    <div class="confirm-row">
-      <div class="confirm-lbl">Получаю</div>
-      <div class="confirm-val" id="c-get"></div>
-    </div>
-    <div class="confirm-row">
-      <div class="confirm-lbl">Курс</div>
-      <div class="confirm-val" id="c-rate"></div>
-    </div>
-    <div class="confirm-row">
-      <div class="confirm-lbl">Агент</div>
-      <div class="confirm-val" id="c-agent"></div>
-    </div>
-    <div class="modal-btns">
-      <button class="btn-o" id="btn-cancel">← Назад</button>
-      <button class="btn btn-g" id="btn-confirm">✓ Отправить</button>
-    </div>
   </div>
 </div>
 
 <script>
-// ================================================================
-// CONFIG
-// ================================================================
 var params       = new URLSearchParams(window.location.search);
 var AGENTS_PARAM = params.get('agents') || params.get('agent') || '';
-var ROLE         = params.get('role') || 'agent'; // 'owner' or 'agent'
-var IS_OWNER     = (ROLE === 'owner' || ROLE === 'senior'); // owner = директор
+var ROLE         = params.get('role') || 'agent';
+var IS_OWNER     = (ROLE === 'owner' || ROLE === 'senior');
 var GS_URL       = params.get('gs') || localStorage.getItem('gs_url') || '';
-
 var CURS = ['usdt','eur','huf','usd','czk'];
 var SYM  = {eur:'€', huf:'Ft', usdt:'USDT', usd:'$', czk:'Kč'};
-
 if (GS_URL) localStorage.setItem('gs_url', GS_URL);
 
 var AGENTS_LIST = AGENTS_PARAM
   ? AGENTS_PARAM.split(',').map(function(a){ return a.trim(); }).filter(Boolean)
   : [];
 
+var dealQueue = [];
+
 function getSelectedAgent() {
   var sel = document.getElementById('agent-select');
   return sel ? sel.value : '';
 }
-
 function fmt(v, c) {
   if (c === 'huf' || c === 'czk') return Math.round(v).toLocaleString('ru') + ' ' + SYM[c];
   return parseFloat(v).toFixed(2) + ' ' + SYM[c];
@@ -293,37 +268,29 @@ function fmt(v, c) {
 function today() { return new Date().toLocaleDateString('ru',{day:'2-digit',month:'2-digit'}); }
 function nowTime(){ return new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}); }
 
-// ── INIT ──────────────────────────────────────────────────────
+// INIT
 if (!AGENTS_LIST.length || !GS_URL) {
   document.getElementById('no-config-screen').classList.remove('hidden');
   document.getElementById('main-screen').style.display = 'none';
 } else {
-  // Badge
   var badge = document.getElementById('role-badge');
-  var agentName = AGENTS_LIST.length === 1 ? AGENTS_LIST[0] : 'Агент';
+  var agentDisplayName = AGENTS_LIST.length === 1 ? AGENTS_LIST[0] : 'Агент';
   if (IS_OWNER) {
-    badge.textContent = '★ ' + agentName;
-    badge.className = 'role-badge role-senior';
-    // Owner sees: capital movement, NO transfer form
-    document.getElementById('senior-panel').classList.remove('hidden');
+    badge.textContent = '★ ' + agentDisplayName;
+    badge.className = 'role-badge role-owner';
+    document.getElementById('owner-panel').classList.remove('hidden');
     document.getElementById('transfer-card').style.display = 'none';
   } else {
-    badge.textContent = agentName;
+    badge.textContent = agentDisplayName;
     badge.className = 'role-badge role-agent';
-    // Agent sees: transfer form, NO capital movement
     document.getElementById('transfer-card').style.display = '';
-    // senior-panel stays hidden
   }
-
-  // Populate agent selector
   var sel = document.getElementById('agent-select');
   AGENTS_LIST.forEach(function(name) {
     var opt = document.createElement('option');
     opt.value = name; opt.textContent = name;
     sel.appendChild(opt);
   });
-
-  // Populate transfer "to" selector (agents only)
   var trSel = document.getElementById('tr-to-agent');
   AGENTS_LIST.forEach(function(name) {
     var opt = document.createElement('option');
@@ -331,146 +298,174 @@ if (!AGENTS_LIST.length || !GS_URL) {
     trSel.appendChild(opt);
   });
   if (AGENTS_LIST.length > 1) trSel.value = AGENTS_LIST[1];
-
   fetchRate();
 }
 
-// ================================================================
-// RATE FETCH
-// ================================================================
+// RATE
 function updateRateLabel() {
   var g = document.getElementById('give-cur').value;
   var r = document.getElementById('get-cur').value;
-  document.getElementById('rate-lbl').textContent = 'Курс (1 ' + SYM[g] + ' = ? ' + SYM[r] + ')';
+  document.getElementById('rate-lbl').textContent = 'Курс сделки (1 ' + SYM[g] + ' = ? ' + SYM[r] + ')';
 }
-
 function fetchRate() {
   var gc = document.getElementById('give-cur').value;
   var rc = document.getElementById('get-cur').value;
   if (gc === rc) return;
-
   var btn = document.getElementById('btn-fetch-rate');
   var src = document.getElementById('rate-src');
   btn.innerHTML = '<span class="spin">⟳</span>';
   btn.disabled = true;
-
   var fGc = gc === 'usdt' ? 'usd' : gc;
   var fRc = rc === 'usdt' ? 'usd' : rc;
-
   if (fGc === fRc) {
-    document.getElementById('rate').value = 1;
-    src.textContent = 'USDT ≈ USD';
-    btn.innerHTML = '⟳ Курс'; btn.disabled = false;
-    return;
+    document.getElementById('rate').value = '1';
+    src.textContent = 'USDT ≈ USD'; src.style.color = 'var(--muted)';
+    btn.innerHTML = '⟳ Рынок'; btn.disabled = false;
+    updateCalcHint(); return;
   }
-
   fetch('https://api.frankfurter.app/latest?from=' + fGc.toUpperCase() + '&to=' + fRc.toUpperCase())
     .then(function(r){ return r.json(); })
     .then(function(data) {
       var rate = data.rates && data.rates[fRc.toUpperCase()];
       if (!rate) throw new Error('нет данных');
       document.getElementById('rate').value = rate;
-      src.textContent = '✓ ' + nowTime();
+      src.textContent = '✓ рыночный · ' + nowTime();
       src.style.color = 'var(--green)';
-      btn.innerHTML = '⟳ Курс'; btn.disabled = false;
+      btn.innerHTML = '⟳ Рынок'; btn.disabled = false;
+      updateCalcHint();
     })
     .catch(function() {
-      src.textContent = '✗ Ошибка загрузки курса';
-      src.style.color = 'var(--red)';
-      btn.innerHTML = '⟳ Курс'; btn.disabled = false;
+      src.textContent = '✗ Ошибка загрузки курса'; src.style.color = 'var(--red)';
+      btn.innerHTML = '⟳ Рынок'; btn.disabled = false;
     });
 }
-
 document.getElementById('give-cur').addEventListener('change', function(){ updateRateLabel(); fetchRate(); });
 document.getElementById('get-cur').addEventListener('change',  function(){ updateRateLabel(); fetchRate(); });
 document.getElementById('btn-fetch-rate').addEventListener('click', fetchRate);
 
-// ================================================================
-// SEND DATA — fire and forget via no-cors fetch
-// ================================================================
-function sendData(url, successMsg) {
-  fetch(url, {mode: 'no-cors'})
-    .then(function() {
-      showToast(successMsg || '✓ Отправлено');
-    })
-    .catch(function(e) {
-      showToast('Ошибка: ' + e.message, true);
-    });
-}
-
-// JSONP helper — kept for roundStatus only
-function jsonpCall(url, callback) {
-  var cbName = 'cb_' + Date.now() + '_' + Math.floor(Math.random()*9999);
-  var script = document.createElement('script');
-
-  window[cbName] = function(data) {
-    delete window[cbName];
-    if (document.body.contains(script)) document.body.removeChild(script);
-    callback(null, data);
-  };
-
-  script.onerror = function() {
-    delete window[cbName];
-    if (document.body.contains(script)) document.body.removeChild(script);
-    callback(new Error('Ошибка сети'));
-  };
-
-  script.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'callback=' + cbName;
-  document.body.appendChild(script);
-}
-
-// ================================================================
-// SUBMIT DEAL
-// ================================================================
-var pendingDeal = null;
-
-document.getElementById('btn-submit').addEventListener('click', function() {
-  var ga  = parseFloat(document.getElementById('give-amt').value);
-  var gc  = document.getElementById('give-cur').value;
-  var ra  = parseFloat(document.getElementById('get-amt').value);
-  var rc  = document.getElementById('get-cur').value;
-  var rt  = parseFloat(document.getElementById('rate').value);
-  var note = document.getElementById('note').value.trim();
-
-  if (!ga || !ra || !rt) { showToast('Заполни все числовые поля', true); return; }
-  if (gc === rc)          { showToast('Валюты должны быть разными', true); return; }
-
+// CALC HINT
+function updateCalcHint() {
+  var ga = parseFloat(document.getElementById('give-amt').value);
+  var gc = document.getElementById('give-cur').value;
+  var ra = parseFloat(document.getElementById('get-amt').value);
+  var rc = document.getElementById('get-cur').value;
+  var rt = parseFloat(document.getElementById('rate').value);
+  var hint = document.getElementById('calc-hint');
+  if (!ga || !ra || !rt || gc === rc) {
+    hint.innerHTML = '<div><div class="calc-hint-label">Профит от сделки</div>'
+      + '<div style="color:var(--muted);font-size:11px;margin-top:3px;">введи суммы и курс</div></div>';
+    return;
+  }
   var mv = ga * rt;
   var profit = ra - mv;
-  var pct = mv > 0 ? ((profit/mv)*100).toFixed(2) : '0.00';
+  var pct = mv > 0 ? (profit / mv * 100) : 0;
+  var col = profit >= 0 ? 'var(--green)' : 'var(--red)';
+  var sign = profit >= 0 ? '+' : '';
+  hint.innerHTML = '<div>'
+    + '<div class="calc-hint-label">Профит от сделки</div>'
+    + '<div style="margin-top:3px;">'
+    + '<span style="color:' + col + ';font-size:15px;font-weight:700;">' + sign + fmt(profit, rc) + '</span>'
+    + '<span style="color:' + col + ';font-size:11px;margin-left:8px;">' + sign + pct.toFixed(2) + '%</span>'
+    + '</div></div>'
+    + '<div style="text-align:right;font-size:10px;color:var(--muted);">'
+    + 'по курсу<br><span style="font-size:12px;font-weight:600;color:var(--text);">1 ' + SYM[gc] + ' = ' + rt + ' ' + SYM[rc] + '</span>'
+    + '</div>';
+}
+['give-amt','get-amt','rate'].forEach(function(id){
+  document.getElementById(id).addEventListener('input', updateCalcHint);
+});
 
-  pendingDeal = {
+// ADD TO QUEUE
+document.getElementById('btn-add-queue').addEventListener('click', function() {
+  var ga   = parseFloat(document.getElementById('give-amt').value);
+  var gc   = document.getElementById('give-cur').value;
+  var ra   = parseFloat(document.getElementById('get-amt').value);
+  var rc   = document.getElementById('get-cur').value;
+  var rt   = parseFloat(document.getElementById('rate').value);
+  var note = document.getElementById('note').value.trim();
+  if (!ga || !ra || !rt) { showToast('Заполни все числовые поля', true); return; }
+  if (gc === rc)          { showToast('Валюты должны быть разными', true); return; }
+  var mv = ga * rt;
+  var profit = ra - mv;
+  var pct = mv > 0 ? ((profit / mv) * 100).toFixed(2) : '0.00';
+  dealQueue.push({
+    id: Date.now() + Math.random(),
     agent: getSelectedAgent(),
     giveCur: gc, giveAmount: ga,
-    getCur:  rc, getAmount:  ra,
+    getCur: rc,  getAmount: ra,
     rate: rt, profit: profit, pct: pct,
-    note: note, date: today(), time: nowTime()
-  };
-
-  document.getElementById('c-give').innerHTML  = '<span class="tag t-'+gc+'">'+fmt(ga,gc)+'</span>';
-  document.getElementById('c-get').innerHTML   = '<span class="tag t-'+rc+'">'+fmt(ra,rc)+'</span>';
-  document.getElementById('c-rate').textContent = '1 '+SYM[gc]+' = '+rt+' '+SYM[rc];
-  document.getElementById('c-agent').textContent = getSelectedAgent();
-
-  document.getElementById('confirm-modal').classList.remove('hidden');
+    note: note, date: today(), time: nowTime(),
+    status: 'pending'
+  });
+  document.getElementById('give-amt').value = '';
+  document.getElementById('get-amt').value  = '';
+  document.getElementById('note').value     = '';
+  document.getElementById('calc-hint').innerHTML = '<div><div class="calc-hint-label">Профит от сделки</div>'
+    + '<div style="color:var(--muted);font-size:11px;margin-top:3px;">введи суммы и курс</div></div>';
+  renderQueue();
+  showToast('✓ Добавлено в очередь');
 });
 
-document.getElementById('btn-cancel').addEventListener('click', function() {
-  document.getElementById('confirm-modal').classList.add('hidden');
-  pendingDeal = null;
+// RENDER QUEUE
+function renderQueue() {
+  var list  = document.getElementById('queue-list');
+  var count = document.getElementById('queue-count');
+  var btn   = document.getElementById('btn-send-all');
+  var pending = dealQueue.filter(function(d){ return d.status !== 'sent'; }).length;
+  count.textContent = pending;
+  if (!dealQueue.length) {
+    list.innerHTML = '<div class="queue-empty">Добавьте сделки выше</div>';
+    btn.classList.add('hidden'); return;
+  }
+  var h = '';
+  dealQueue.forEach(function(d) {
+    var col = d.profit >= 0 ? 'var(--green)' : 'var(--red)';
+    var sign = d.profit >= 0 ? '+' : '';
+    var isSent = d.status === 'sent';
+    var statusIcon = '';
+    if (d.status === 'sending') statusIcon = ' <span class="spin" style="color:var(--gold)">⟳</span>';
+    if (d.status === 'sent')    statusIcon = ' <span style="color:var(--green)">✓</span>';
+    if (d.status === 'error')   statusIcon = ' <span style="color:var(--red)">✗</span>';
+    h += '<div class="queue-item" style="opacity:' + (isSent ? '.5' : '1') + '">'
+      + '<div class="queue-item-info">'
+      + '<div class="queue-item-main">'
+      + '<span class="tag t-' + d.giveCur + '">' + fmt(d.giveAmount, d.giveCur) + '</span>'
+      + ' → <span class="tag t-' + d.getCur + '">' + fmt(d.getAmount, d.getCur) + '</span>'
+      + statusIcon + '</div>'
+      + '<div class="queue-item-sub">' + d.agent + ' · ' + d.time + (d.note ? ' · ' + d.note : '') + '</div>'
+      + '</div>'
+      + '<div class="queue-item-profit" style="color:' + col + '">' + sign + fmt(d.profit, d.getCur) + '</div>'
+      + '<div class="queue-item-btns">'
+      + (isSent ? '' : '<button class="qbtn send" data-action="send" data-qid="' + d.id + '">↑</button>')
+      + '<button class="qbtn del" data-action="del" data-qid="' + d.id + '">✕</button>'
+      + '</div></div>';
+  });
+  list.innerHTML = h;
+  var hasPending = dealQueue.some(function(d){ return d.status === 'pending'; });
+  if (hasPending && dealQueue.length > 1) btn.classList.remove('hidden');
+  else btn.classList.add('hidden');
+}
+
+document.getElementById('queue-list').addEventListener('click', function(e) {
+  var t = e.target;
+  while (t && t !== this) {
+    var action = t.getAttribute('data-action');
+    var qid = parseFloat(t.getAttribute('data-qid'));
+    if (action === 'send') { sendQueueDeal(qid); return; }
+    if (action === 'del')  { dealQueue = dealQueue.filter(function(d){ return d.id !== qid; }); renderQueue(); return; }
+    t = t.parentNode;
+  }
 });
 
-document.getElementById('confirm-modal').addEventListener('click', function(e) {
-  if (e.target === this) { this.classList.add('hidden'); pendingDeal = null; }
+document.getElementById('btn-send-all').addEventListener('click', function() {
+  dealQueue.forEach(function(d){ if (d.status === 'pending') sendQueueDeal(d.id); });
 });
 
-document.getElementById('btn-confirm').addEventListener('click', function() {
-  if (!pendingDeal) return;
-  var btn = this;
-  btn.innerHTML = '<span class="spin">⟳</span> Отправка...';
-  btn.disabled = true;
-
-  var d = pendingDeal;
+function sendQueueDeal(id) {
+  var d = dealQueue.find(function(x){ return x.id === id; });
+  if (!d || d.status === 'sending' || d.status === 'sent') return;
+  d.status = 'sending';
+  renderQueue();
   var url = GS_URL
     + '?action=submit'
     + '&agent='      + encodeURIComponent(d.agent)
@@ -482,27 +477,17 @@ document.getElementById('btn-confirm').addEventListener('click', function() {
     + '&note='       + encodeURIComponent(d.note)
     + '&date='       + encodeURIComponent(d.date)
     + '&time='       + encodeURIComponent(d.time);
+  fetch(url, {mode: 'no-cors'})
+    .then(function(){ d.status = 'sent'; renderQueue(); })
+    .catch(function(){ d.status = 'error'; renderQueue(); showToast('Ошибка отправки', true); });
+}
 
-  document.getElementById('give-amt').value = '';
-  document.getElementById('get-amt').value  = '';
-  document.getElementById('note').value     = '';
-  document.getElementById('confirm-modal').classList.add('hidden');
-  pendingDeal = null;
-  btn.innerHTML = '✓ Отправить'; btn.disabled = false;
-
-  sendData(url, '✓ Сделка отправлена!');
-});
-
-// ================================================================
-// SENIOR: CASHFLOW
-// ================================================================
+// CASHFLOW
 function sendCashflow(type) {
   var amt  = parseFloat(document.getElementById('cf-amt').value);
   var cur  = document.getElementById('cf-cur').value;
   var note = document.getElementById('cf-note').value.trim();
-
   if (!amt) { showToast('Введи сумму', true); return; }
-
   var url = GS_URL
     + '?action=cashflow'
     + '&cfType='  + encodeURIComponent(type)
@@ -512,83 +497,40 @@ function sendCashflow(type) {
     + '&date='    + encodeURIComponent(today())
     + '&time='    + encodeURIComponent(nowTime())
     + '&agent='   + encodeURIComponent(getSelectedAgent());
-
   document.getElementById('cf-amt').value  = '';
   document.getElementById('cf-note').value = '';
-  var label = type === 'in' ? 'Пополнение' : 'Вывод';
-  sendData(url, '✓ ' + label + ' записан');
+  fetch(url, {mode: 'no-cors'})
+    .then(function(){ showToast('✓ ' + (type === 'in' ? 'Пополнение' : 'Вывод') + ' записан'); })
+    .catch(function(e){ showToast('Ошибка: ' + e.message, true); });
 }
+document.getElementById('btn-cf-in').addEventListener('click',  function(){ sendCashflow('in'); });
+document.getElementById('btn-cf-out').addEventListener('click', function(){ sendCashflow('out'); });
 
-if (document.getElementById('btn-cf-in')) {
-  document.getElementById('btn-cf-in').addEventListener('click',  function(){ sendCashflow('in'); });
-  document.getElementById('btn-cf-out').addEventListener('click', function(){ sendCashflow('out'); });
-}
-
-// ================================================================
-// SENIOR: ROUND STATUS + CLOSE
-// ================================================================
-if (document.getElementById('btn-close-round')) {
-  document.getElementById('btn-close-round').addEventListener('click', function() {
-    if (!confirm('Закрыть раунд?')) return;
-    var btn = this;
-    btn.innerHTML = '<span class="spin">⟳</span>';
-    btn.disabled = true;
-    var url = GS_URL + '?action=closeRound&time=' + encodeURIComponent(nowTime()) + '&date=' + encodeURIComponent(today());
-    sendData(url, '✓ Раунд закрыт');
-    setTimeout(function(){ btn.innerHTML = '⏹ Закрыть раунд'; btn.disabled = false; }, 2000);
-  });
-}
-
-// ================================================================
 // TRANSFER
-// ================================================================
-if (document.getElementById('btn-tr-submit')) {
-  document.getElementById('btn-tr-submit').addEventListener('click', function() {
-    var toAgent = document.getElementById('tr-to-agent').value;
-    var amt     = parseFloat(document.getElementById('tr-amt').value);
-    var cur     = document.getElementById('tr-cur').value;
-    var note    = document.getElementById('tr-note').value.trim();
-    var from    = getSelectedAgent();
+document.getElementById('btn-tr-submit').addEventListener('click', function() {
+  var toAgent = document.getElementById('tr-to-agent').value;
+  var amt     = parseFloat(document.getElementById('tr-amt').value);
+  var cur     = document.getElementById('tr-cur').value;
+  var note    = document.getElementById('tr-note').value.trim();
+  var from    = getSelectedAgent();
+  if (!amt || amt <= 0) { showToast('Введи сумму', true); return; }
+  if (toAgent === from)  { showToast('Нельзя передать самому себе', true); return; }
+  var btn = this;
+  btn.innerHTML = '<span class="spin">⟳</span> Отправка...';
+  btn.disabled = true;
+  fetch(GS_URL, {
+    method: 'POST', mode: 'no-cors',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({type:'transfer', fromAgent:from, toAgent:toAgent, cur:cur, amt:amt, note:note, date:today(), time:nowTime()})
+  }).then(function(){
+    document.getElementById('tr-amt').value  = '';
+    document.getElementById('tr-note').value = '';
+    btn.innerHTML = 'ПЕРЕДАТЬ →'; btn.disabled = false;
+    showToast('✓ Передача записана');
+  }).catch(function(e){ btn.innerHTML = 'ПЕРЕДАТЬ →'; btn.disabled = false; showToast('Ошибка: ' + e.message, true); });
+});
 
-    if (!amt || amt <= 0) { showToast('Введи сумму', true); return; }
-    if (!toAgent)          { showToast('Укажи получателя', true); return; }
-    if (toAgent === from)  { showToast('Нельзя передать самому себе', true); return; }
-
-    var btn = this;
-    btn.innerHTML = '<span class="spin">⟳</span> Отправка...';
-    btn.disabled = true;
-
-    var payload = JSON.stringify({
-      type:      'transfer',
-      fromAgent: from,
-      toAgent:   toAgent,
-      cur:       cur,
-      amt:       amt,
-      note:      note,
-      date:      today(),
-      time:      nowTime()
-    });
-
-    fetch(GS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: payload
-    }).then(function() {
-      document.getElementById('tr-amt').value  = '';
-      document.getElementById('tr-note').value = '';
-      btn.innerHTML = 'ПЕРЕДАТЬ →'; btn.disabled = false;
-      showToast('✓ Передача записана');
-    }).catch(function(e) {
-      btn.innerHTML = 'ПЕРЕДАТЬ →'; btn.disabled = false;
-      showToast('Ошибка: ' + e.message, true);
-    });
-  });
-}
-
-// ================================================================
 // TOAST
-// ================================================================
 function showToast(msg, isError) {
   var t = document.createElement('div');
   t.className = 'toast' + (isError ? ' error' : '');

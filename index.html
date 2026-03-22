@@ -1451,7 +1451,7 @@ function undoExDeal() {
 }
 
 function deleteExDeal(id) {
-  var idx = exState.deals.findIndex(function(d){return d.id===id;});
+  var idx = exState.deals.findIndex(function(d){return String(d.id)===String(id);});
   if (idx===-1) return;
   exState.deals.splice(idx,1);
   rebuildRounds();
@@ -1942,7 +1942,7 @@ document.getElementById('ex-log').addEventListener('click', function(e) {
   var t = e.target;
   while (t && t !== this) {
     if (t.className && t.className.indexOf('ex-del') !== -1) {
-      deleteExDeal(parseInt(t.getAttribute('data-id')));
+      deleteExDeal(t.getAttribute('data-id'));
       return;
     }
     t = t.parentNode;
@@ -2610,15 +2610,6 @@ function readTransfers() {
   }
   return { ok: true, rows: rows };
 }`;
-
-document.getElementById('gs-show-script').addEventListener('click', function(e) {
-  e.preventDefault();
-  var block = document.getElementById('gs-script-block');
-  block.style.display = block.style.display === 'none' ? 'block' : 'none';
-  document.getElementById('gs-script-text').textContent = APPS_SCRIPT_CODE;
-});
-
-
 
 document.getElementById('gs-show-script').addEventListener('click', function(e) {
   e.preventDefault();
