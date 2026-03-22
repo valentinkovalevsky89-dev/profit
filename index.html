@@ -708,9 +708,18 @@ function renderExAgents() {
   });
 
   // Holdings per agent — what each agent physically holds
-  // = sum of deals where they are the acting agent (getCur - giveCur)
+  // = capital (owner only) + deals + transfers
   var holdings = {};
   allIds.forEach(function(id){ holdings[id] = {eur:0,huf:0,usdt:0,usd:0,czk:0}; });
+
+  // Capital flows belong to owner
+  (exState.cashflows || []).forEach(function(cf) {
+    if (cf.type !== 'in' && cf.type !== 'out') return;
+    if (!holdings['owner']) holdings['owner'] = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+    if (cf.type === 'in')  holdings['owner'][cf.cur] += cf.amt;
+    if (cf.type === 'out') holdings['owner'][cf.cur] -= cf.amt;
+  });
+
   exState.deals.forEach(function(d) {
     var agentObj = getAgent(d.agent || 'owner');
     var agentId  = agentObj ? agentObj.id : 'owner';
@@ -718,6 +727,7 @@ function renderExAgents() {
     holdings[agentId][d.giveCur] -= d.giveAmount;
     holdings[agentId][d.getCur]  += d.getAmount;
   });
+
   // Apply transfers — fromAgent loses, toAgent gains
   (exState.cashflows || []).forEach(function(cf) {
     if (cf.type !== 'transfer') return;
@@ -1179,40 +1189,47 @@ function finalizeRound(round, closeRates) {
   var closedUsdt = portfolioToUsdt(closedSnapshot, closeRates);
   var profitUsdt = closedUsdt - round.snapshotUsdt;
 
-  // Agent breakdown: distribute profit proportionally to deals since round opened
-  var dealsSince = exState.deals.filter(function(d){ return d.id >= round.id; });
-  var agentBreakdown = {};
+  // Agent breakdown: use agentSpread ratios to distribute real USDT profit
+  // This respects attribution pools — agents who contributed capital get their share
   var allIds = ['owner'].concat(agentCfg.agents.map(function(a){return a.id;}));
+  var agentBreakdown = {};
   allIds.forEach(function(id){ agentBreakdown[id] = 0; });
 
-  if (dealsSince.length > 0) {
-    var totalAbsProfit = dealsSince.reduce(function(s,d){ return s + Math.abs(d.profit); }, 0) || 1;
-    dealsSince.forEach(function(d) {
-      var weight = Math.abs(d.profit) / totalAbsProfit;
-      var agentId = d.agent || 'owner';
-      var agentObj = getAgent(agentId);
-      var agentFrac = agentObj && agentId !== 'owner' ? (agentObj.pct / 100) : 0;
-      if (!agentBreakdown[agentId]) agentBreakdown[agentId] = 0;
-      agentBreakdown[agentId] += profitUsdt * weight * agentFrac;
-      agentBreakdown['owner'] += profitUsdt * weight * (1 - agentFrac);
+  // Convert agentSpread to USDT using close rates for ratio calculation
+  var spreadUsdt = {};
+  var totalSpreadUsdt = 0;
+  allIds.forEach(function(id) {
+    var bucket = exState.agentSpread[id] || {};
+    var usdtVal = 0;
+    CURS.forEach(function(c) {
+      var v = bucket[c] || 0;
+      var rate = (c === 'usdt') ? 1 : (closeRates[c] || 0);
+      usdtVal += v * rate;
+    });
+    spreadUsdt[id] = usdtVal;
+    totalSpreadUsdt += Math.abs(usdtVal);
+  });
+
+  if (totalSpreadUsdt > 0) {
+    allIds.forEach(function(id) {
+      var ratio = Math.abs(spreadUsdt[id]) / totalSpreadUsdt;
+      agentBreakdown[id] = profitUsdt * ratio;
     });
   } else {
-    // No deals — all profit to owner
     agentBreakdown['owner'] = profitUsdt;
   }
 
-  round.status        = 'closed';
-  round.closedDate    = today();
-  round.closedTime    = now();
-  round.closedUsdt    = closedUsdt;
-  round.closeRates    = closeRates;
-  round.profitUsdt    = profitUsdt;
+  round.status         = 'closed';
+  round.closedDate     = today();
+  round.closedTime     = now();
+  round.closedUsdt     = closedUsdt;
+  round.closeRates     = closeRates;
+  round.profitUsdt     = profitUsdt;
   round.agentBreakdown = agentBreakdown;
 
   exState.openRound2 = null;
   save();
   renderRounds();
-  // Also refresh agent cards (realized USDT updated)
   renderExAgents();
 }
 
@@ -2723,6 +2740,18 @@ function showGsStep(step) {
 }
 
 // Normalize currency string from form
+// Normalize date — strips full Date.toString() to dd.mm format
+function normDate(s) {
+  if (!s) return '';
+  s = s.toString().trim();
+  // Already short format like "22.03"
+  if (/^\d{2}\.\d{2}/.test(s)) return s.substring(0, 5);
+  // Try parsing as date
+  var d = new Date(s);
+  if (!isNaN(d)) return d.toLocaleDateString('ru', {day:'2-digit', month:'2-digit'});
+  return s;
+}
+
 function normCur(s) {
   s = (s||'').toUpperCase().trim();
   var map = {'USDT':'usdt','USD':'usd','EUR':'eur','HUF':'huf','CZK':'czk',
@@ -2762,7 +2791,7 @@ document.getElementById('gs-fetch-btn').addEventListener('click', function() {
           cur:    r.cur.toLowerCase(),
           amt:    parseFloat(r.amt) || 0,
           note:   r.note || '',
-          date:   r.date || '',
+          date:   normDate(r.date) || '',
           _gsRow: r._row
         });
       });
