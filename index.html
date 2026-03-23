@@ -2097,12 +2097,10 @@ document.getElementById("btn-ex-report").addEventListener("click", function() {
     }
   }
 
-  // Fetch live rates if round is open, else use fallback
-  if (openR2) {
-    fetchAllRatesUsdt().then(function(r){ copyReport(buildReport(r)); }).catch(function(){ copyReport(buildReport(null)); });
-  } else {
-    copyReport(buildReport(null));
-  }
+  // Always fetch live rates for accurate USDT conversion
+  fetchAllRatesUsdt()
+    .then(function(r){ copyReport(buildReport(r)); })
+    .catch(function(){ copyReport(buildReport(null)); });
 });
 
 // ================================================================
