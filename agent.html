@@ -186,12 +186,22 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospa
         <input type="text" id="note" placeholder="@username или комментарий">
       </div>
 
-      <div id="usdt-to-owner-row" style="display:none;margin-bottom:12px;background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.25);border-radius:8px;padding:10px 12px;">
+      <!-- getCur=USDT: по умолчанию включена — USDT идут владельцу -->
+      <div id="usdt-to-owner-row" style="display:none;margin-bottom:8px;background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.25);border-radius:8px;padding:10px 12px;">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--gold);">
-          <input type="checkbox" id="usdt-to-owner" style="width:16px;height:16px;accent-color:var(--gold);">
+          <input type="checkbox" id="usdt-to-owner" checked style="width:16px;height:16px;accent-color:var(--gold);">
           USDT передаю владельцу
         </label>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px;margin-left:24px;">Автоматически запишет перевод USDT → владельцу</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;margin-left:24px;">По умолчанию включено — снять если оставляешь USDT себе</div>
+      </div>
+
+      <!-- giveCur=USDT: по умолчанию выключена — USDT берём у владельца -->
+      <div id="usdt-from-owner-row" style="display:none;margin-bottom:8px;background:rgba(180,139,247,.08);border:1px solid rgba(180,139,247,.25);border-radius:8px;padding:10px 12px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--czk);">
+          <input type="checkbox" id="usdt-from-owner" style="width:16px;height:16px;accent-color:var(--czk);">
+          USDT беру у владельца
+        </label>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;margin-left:24px;">Включить если USDT идут с кошелька владельца — запишет transfer входящий</div>
       </div>
 
       <button class="btn btn-g" id="btn-add-queue">+ ДОБАВИТЬ В ОЧЕРЕДЬ</button>
@@ -437,13 +447,23 @@ function fetchRate() {
       btn.innerHTML = '⟳ Рынок'; btn.disabled = false;
     });
 }
-document.getElementById('give-cur').addEventListener('change', function(){ updateRateLabel(); fetchRate(); });
-document.getElementById('get-cur').addEventListener('change',  function(){
+document.getElementById('give-cur').addEventListener('change', function(){
   updateRateLabel(); fetchRate();
-  // Show USDT-to-owner checkbox only when getCur=USDT and not owner role
-  var row = document.getElementById('usdt-to-owner-row');
-  if (row) row.style.display = (!IS_OWNER && this.value === 'usdt') ? '' : 'none';
-  if (row && (IS_OWNER || this.value !== 'usdt')) document.getElementById('usdt-to-owner').checked = false;
+  // Show "беру у владельца" only when giveCur=USDT and not owner
+  var rowFrom = document.getElementById('usdt-from-owner-row');
+  if (rowFrom) rowFrom.style.display = (!IS_OWNER && this.value === 'usdt') ? '' : 'none';
+  if (rowFrom && (IS_OWNER || this.value !== 'usdt')) document.getElementById('usdt-from-owner').checked = false;
+});
+document.getElementById('get-cur').addEventListener('change', function(){
+  updateRateLabel(); fetchRate();
+  // Show "передаю владельцу" only when getCur=USDT and not owner — checked by default
+  var rowTo = document.getElementById('usdt-to-owner-row');
+  if (rowTo) {
+    var show = !IS_OWNER && this.value === 'usdt';
+    rowTo.style.display = show ? '' : 'none';
+    if (show) document.getElementById('usdt-to-owner').checked = true;
+    else document.getElementById('usdt-to-owner').checked = false;
+  }
 });
 document.getElementById('btn-fetch-rate').addEventListener('click', fetchRate);
 
@@ -538,7 +558,8 @@ document.getElementById('btn-add-queue').addEventListener('click', function() {
   var mv = ga * rt;
   var profit = ra - mv;
   var pct = mv > 0 ? ((profit / mv) * 100).toFixed(2) : '0.00';
-  var usdtToOwner = rc === 'usdt' && !IS_OWNER && document.getElementById('usdt-to-owner').checked;
+  var usdtToOwner   = rc === 'usdt' && !IS_OWNER && document.getElementById('usdt-to-owner').checked;
+  var usdtFromOwner = gc === 'usdt' && !IS_OWNER && document.getElementById('usdt-from-owner').checked;
   dealQueue.push({
     id: Date.now() + Math.random(),
     agent: getSelectedAgent(),
@@ -547,12 +568,14 @@ document.getElementById('btn-add-queue').addEventListener('click', function() {
     rate: rt, profit: profit, pct: pct,
     note: note, date: today(), time: nowTime(),
     status: 'pending',
-    usdtToOwner: usdtToOwner
+    usdtToOwner:   usdtToOwner,
+    usdtFromOwner: usdtFromOwner
   });
   document.getElementById('give-amt').value = '';
   document.getElementById('get-amt').value  = '';
   document.getElementById('note').value     = '';
   document.getElementById('usdt-to-owner').checked = false;
+  document.getElementById('usdt-from-owner').checked = false;
   document.getElementById('calc-hint').innerHTML = '<div><div class="calc-hint-label">Профит от сделки</div>'
     + '<div style="color:var(--muted);font-size:11px;margin-top:3px;">введи суммы и курс</div></div>';
   saveQueue();
@@ -634,25 +657,31 @@ function sendQueueDeal(id) {
   fetch(url, {mode: 'no-cors'})
     .then(function(){
       d.status = 'sent'; saveQueue(); renderQueue();
-      // Auto-transfer USDT to owner if flagged
+      var ownerName = AGENTS_LIST.length > 1 ? AGENTS_LIST[1] : AGENTS_LIST[0];
+      // Auto-transfer USDT to owner if flagged (getCur=USDT)
       if (d.usdtToOwner && d.getCur === 'usdt' && GS_URL) {
-        // Owner is always the second agent in AGENTS_LIST for non-owner terminal
-        var ownerName = AGENTS_LIST.length > 1 ? AGENTS_LIST[1] : AGENTS_LIST[0];
         fetch(GS_URL, {
           method: 'POST', mode: 'no-cors',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({
-            type: 'transfer',
-            fromAgent: d.agent,
-            toAgent:   ownerName,
-            cur:       'usdt',
-            amt:       d.getAmount,
-            note:      'авто · USDT от сделки',
-            date:      d.date,
-            time:      d.time
+            type: 'transfer', fromAgent: d.agent, toAgent: ownerName,
+            cur: 'usdt', amt: d.getAmount,
+            note: 'авто · USDT от сделки', date: d.date, time: d.time
           })
         }).catch(function(){});
-        showToast('✓ Сделка + перевод USDT → владельцу');
+        showToast('✓ Сделка + USDT → владельцу');
+      // Auto-transfer USDT from owner if flagged (giveCur=USDT)
+      } else if (d.usdtFromOwner && d.giveCur === 'usdt' && GS_URL) {
+        fetch(GS_URL, {
+          method: 'POST', mode: 'no-cors',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            type: 'transfer', fromAgent: ownerName, toAgent: d.agent,
+            cur: 'usdt', amt: d.giveAmount,
+            note: 'авто · USDT от владельца', date: d.date, time: d.time
+          })
+        }).catch(function(){});
+        showToast('✓ Сделка + USDT от владельца');
       }
     })
     .catch(function(){ d.status = 'error'; saveQueue(); renderQueue(); showToast('Ошибка отправки', true); });

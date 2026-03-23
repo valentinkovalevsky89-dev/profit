@@ -741,10 +741,14 @@ function renderExAgents() {
   // Apply transfers — fromAgent loses, toAgent gains
   (exState.cashflows || []).forEach(function(cf) {
     if (cf.type !== 'transfer') return;
-    if (!holdings[cf.fromAgent]) holdings[cf.fromAgent] = {eur:0,huf:0,usdt:0,usd:0,czk:0};
-    if (!holdings[cf.toAgent])   holdings[cf.toAgent]   = {eur:0,huf:0,usdt:0,usd:0,czk:0};
-    holdings[cf.fromAgent][cf.cur] -= cf.amt;
-    holdings[cf.toAgent][cf.cur]   += cf.amt;
+    var fromObj = getAgent(cf.fromAgent);
+    var toObj   = getAgent(cf.toAgent);
+    var fromId  = fromObj ? fromObj.id : cf.fromAgent;
+    var toId    = toObj   ? toObj.id   : cf.toAgent;
+    if (!holdings[fromId]) holdings[fromId] = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+    if (!holdings[toId])   holdings[toId]   = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+    holdings[fromId][cf.cur] -= cf.amt;
+    holdings[toId][cf.cur]   += cf.amt;
   });
 
 
@@ -752,10 +756,14 @@ function renderExAgents() {
   var poolsIn  = {};  // toAgent   -> {cur -> remainingAmt}
   allIds.forEach(function(id){ poolsOut[id] = {}; poolsIn[id] = {}; });
   (exState.attributionPools || []).forEach(function(p) {
-    if (!poolsOut[p.fromAgent]) poolsOut[p.fromAgent] = {};
-    if (!poolsIn[p.toAgent])   poolsIn[p.toAgent]   = {};
-    poolsOut[p.fromAgent][p.cur] = (poolsOut[p.fromAgent][p.cur]||0) + p.remainingAmt;
-    poolsIn[p.toAgent][p.cur]   = (poolsIn[p.toAgent][p.cur]||0)   + p.remainingAmt;
+    var fromObj = getAgent(p.fromAgent);
+    var toObj   = getAgent(p.toAgent);
+    var fromId  = fromObj ? fromObj.id : p.fromAgent;
+    var toId    = toObj   ? toObj.id   : p.toAgent;
+    if (!poolsOut[fromId]) poolsOut[fromId] = {};
+    if (!poolsIn[toId])    poolsIn[toId]    = {};
+    poolsOut[fromId][p.cur] = (poolsOut[fromId][p.cur]||0) + p.remainingAmt;
+    poolsIn[toId][p.cur]    = (poolsIn[toId][p.cur]||0)   + p.remainingAmt;
   });
 
   function spreadRows(bucket) {
@@ -1552,14 +1560,16 @@ function rebuildRounds() {
   // Collect all transfers sorted by insertion order
   (exState.cashflows || []).forEach(function(cf) {
     if (cf.type !== 'transfer') return;
+    var fromObj = getAgent(cf.fromAgent);
+    var toObj   = getAgent(cf.toAgent);
     livePools.push({
-      id:          cf._id || (cf.fromAgent + '_' + cf.date + '_' + cf.amt),
-      fromAgent:   cf.fromAgent,
-      toAgent:     cf.toAgent,
-      cur:         cf.cur,
-      originalAmt: cf.amt,
+      id:           cf._id || (cf.fromAgent + '_' + cf.date + '_' + cf.amt),
+      fromAgent:    fromObj ? fromObj.id : cf.fromAgent,
+      toAgent:      toObj   ? toObj.id   : cf.toAgent,
+      cur:          cf.cur,
+      originalAmt:  cf.amt,
       remainingAmt: cf.amt,
-      date:        cf.date
+      date:         cf.date
     });
   });
 
@@ -1868,9 +1878,9 @@ document.getElementById("btn-ex-report").addEventListener("click", function() {
   allAgentIds.forEach(function(id){ agentVolume[id] = 0; });
   var fallbackRates = {eur:1.08, huf:0.0026, usd:1, czk:0.043, usdt:1};
   todayDeals.forEach(function(d) {
-    var aid = d.agent || 'owner';
+    var agentObj = getAgent(d.agent || 'owner');
+    var aid = agentObj ? agentObj.id : 'owner';
     if (!agentVolume[aid]) agentVolume[aid] = 0;
-    // Use getAmount if getCur is USDT, else giveAmount converted
     var vol = 0;
     if (d.getCur === 'usdt') vol = d.getAmount;
     else if (d.giveCur === 'usdt') vol = d.giveAmount;
@@ -1883,8 +1893,8 @@ document.getElementById("btn-ex-report").addEventListener("click", function() {
   var agentDaySpread = {};
   allAgentIds.forEach(function(id){ agentDaySpread[id] = {}; });
   todayDeals.forEach(function(d) {
-    var agentId  = d.agent || 'owner';
-    var agentObj = getAgent(agentId);
+    var agentObj = getAgent(d.agent || 'owner');
+    var agentId  = agentObj ? agentObj.id : 'owner';
     var agentFrac = (agentObj && agentId !== 'owner') ? (agentObj.pct / 100) : 0;
     if (!agentDaySpread[agentId]) agentDaySpread[agentId] = {};
     if (!agentDaySpread['owner'])  agentDaySpread['owner']  = {};
@@ -1906,7 +1916,8 @@ document.getElementById("btn-ex-report").addEventListener("click", function() {
   var agentDealCount = {};
   allAgentIds.forEach(function(id){ agentDealCount[id] = 0; });
   todayDeals.forEach(function(d) {
-    var aid = d.agent || 'owner';
+    var agentObj = getAgent(d.agent || 'owner');
+    var aid = agentObj ? agentObj.id : 'owner';
     if (!agentDealCount[aid]) agentDealCount[aid] = 0;
     agentDealCount[aid]++;
   });
@@ -1919,14 +1930,19 @@ document.getElementById("btn-ex-report").addEventListener("click", function() {
     if (cf.type === 'in')  { holdMap['owner'][cf.cur] += cf.amt; }
     if (cf.type === 'out') { holdMap['owner'][cf.cur] -= cf.amt; }
     if (cf.type === 'transfer') {
-      if (!holdMap[cf.fromAgent]) holdMap[cf.fromAgent] = {eur:0,huf:0,usdt:0,usd:0,czk:0};
-      if (!holdMap[cf.toAgent])   holdMap[cf.toAgent]   = {eur:0,huf:0,usdt:0,usd:0,czk:0};
-      holdMap[cf.fromAgent][cf.cur] -= cf.amt;
-      holdMap[cf.toAgent][cf.cur]   += cf.amt;
+      var fromObj = getAgent(cf.fromAgent);
+      var toObj   = getAgent(cf.toAgent);
+      var fromId  = fromObj ? fromObj.id : cf.fromAgent;
+      var toId    = toObj   ? toObj.id   : cf.toAgent;
+      if (!holdMap[fromId]) holdMap[fromId] = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+      if (!holdMap[toId])   holdMap[toId]   = {eur:0,huf:0,usdt:0,usd:0,czk:0};
+      holdMap[fromId][cf.cur] -= cf.amt;
+      holdMap[toId][cf.cur]   += cf.amt;
     }
   });
   exState.deals.forEach(function(d) {
-    var aid = d.agent || 'owner';
+    var agentObj = getAgent(d.agent || 'owner');
+    var aid = agentObj ? agentObj.id : 'owner';
     if (!holdMap[aid]) holdMap[aid] = {eur:0,huf:0,usdt:0,usd:0,czk:0};
     holdMap[aid][d.giveCur] -= d.giveAmount;
     holdMap[aid][d.getCur]  += d.getAmount;
